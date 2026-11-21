@@ -8,6 +8,7 @@
 - Text conversations are the primary interface.
 - AI supports natural conversation; spaced repetition must be deterministic.
 - AI is limited to conversational testing and semantic grading, including spelling variation and permitted transliterations. Application code selects every tested word and updates its schedule.
+- V1 uses a third-party hosted model API called by Jingu's backend, not a self-hosted model. Jingu holds the server-side credentials and pays API usage costs; learners do not need an AI-provider account, subscription, or API key. Provider and model selection remain open.
 - Configurable words per session, English → Korean / Korean → English / mixed directions, and whether transliteration is accepted; generalized for other language pairs.
 - Maintain a vocabulary library and track how often each word is practiced.
 - Provide a lightweight web dashboard and streak mechanism.

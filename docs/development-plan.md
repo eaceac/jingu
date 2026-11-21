@@ -41,6 +41,8 @@ Acceptance:
 
 ## 3. AI conversation
 
+Use a third-party hosted model with Jingu-managed server-side credentials and billing. Compare candidate models on the Korean grading evaluation set, latency, and cost before choosing one. Learners need no model-provider account or subscription.
+
 Implement an AI adapter with structured output, bounded context, schema validation, semantic assessment proposals, stored model/prompt versions, timeout handling, and cost limits. Generate conversational prompts only for application-selected cards, and grade meaning using the opportunity's direction and transliteration policy. Commands, settings, reminders, summaries, and word selection do not invoke AI.
 
 Acceptance:
@@ -53,6 +55,7 @@ Acceptance:
 - Invalid vocabulary IDs and invented evidence are rejected.
 - A learner cannot change scheduling rules or write arbitrary grades through a prompt.
 - AI failures preserve progress and produce the fallback flow.
+- Provider keys remain server-side; request construction omits phone numbers and account identifiers, and onboarding explains third-party processing of practice text.
 - Replaying stored accepted assessments yields the same schedule without another AI request.
 
 ## 4. Live SMS and durable processing
