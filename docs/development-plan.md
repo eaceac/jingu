@@ -1,0 +1,114 @@
+# Development plan
+
+Build one complete practice loop, then connect external services. Milestones below are ordered; each has an observable acceptance gate. This is the proposed build sequence, not a list of completed features.
+
+## 0. Design and repository
+
+- Create the private Jingu repository.
+- Record scope, architecture, scheduler policy, data model, and decisions.
+- Keep provider credentials, deployment configuration, and phone numbers out of source control.
+
+Done when the design and milestones can be reviewed from the repository. No application deployment is required in this phase.
+
+## 1. Deterministic learning foundation
+
+Create a TypeScript workspace with `packages/learning`, `packages/languages`, `packages/contracts`, and `packages/db`. Add a test runner, type checking, reproducible dependency lockfile, and CI. Record runtime versions explicitly.
+
+Implement the scheduler, due selection, eligible-review rules, practice event definitions, local-date daily goals, and streak computation. Add PostgreSQL migrations with unique constraints and transaction helpers. Create a small reviewed Korean seed pack; expand to approximately 50 senses before alpha. Include a second-language fixture to prove the shared engine does not depend on Korean.
+
+Acceptance:
+
+- Fixed inputs produce identical schedules and queue order.
+- Repeating a word in a message or retrying a webhook does not inflate counts.
+- Exposure and incidental usage cannot advance a review card.
+- Hints, failures, maximum intervals, stale assessments, and missing dates behave as documented.
+- Timezone and daylight-saving boundary tests pass.
+- Database concurrency tests demonstrate one committed assessment per opportunity.
+
+## 2. Complete local practice loop
+
+Create `apps/api` and a browser or CLI conversation simulator. Add session planning, curated fallback prompts, event persistence, recap, and progress queries. Use a fake AI provider with fixed outputs before adding real AI.
+
+Acceptance:
+
+- Start a Korean session, complete reviews, finish it, restart the server, and recover the same durable progress.
+- Inspect why each vocabulary count and due date changed.
+- Complete the daily goal and see the correct streak without changing system time; use an injected test clock.
+- A second language can be selected without changing the scheduling code.
+
+## 3. AI conversation
+
+Implement an AI adapter with structured output, bounded context, schema validation, semantic assessment proposals, stored model/prompt versions, timeout handling, and cost limits. Add scenario selection and short Korean corrections. Keep deterministic recall checks where accepted answers are well-defined.
+
+Acceptance:
+
+- Conversations naturally practice selected words across several topics.
+- Korean inflections, particles, politeness variants, multiword expressions, ambiguous evidence, and wrong answers are evaluated against a small curated assessment set.
+- Invalid vocabulary IDs and invented evidence are rejected.
+- A learner cannot change scheduling rules or write arbitrary grades through a prompt.
+- AI failures preserve progress and produce the fallback flow.
+- Replaying stored accepted assessments yields the same schedule without another AI request.
+
+## 4. Live SMS and durable processing
+
+Implement `packages/messaging` and `apps/worker`. Configure a provider account, sender, webhook endpoint, signature validation, inbound deduplication, per-learner ordering, outbox delivery, status callbacks, onboarding, and opt-out handling. Keep the simulator using the same session orchestrator.
+
+Acceptance:
+
+- A real opted-in phone can complete a session from its Messages app.
+- Duplicate and concurrent webhook deliveries create one learning transition.
+- Invalid signatures are rejected; unknown senders cannot see another user's data.
+- Worker restarts recover queued work without losing accepted messages.
+- STOP prevents scheduled sends; provider opt-out confirmations are not duplicated.
+- Failed or ambiguous outbound sends are visible and do not fabricate delivery success.
+
+Needs before activation: provider credentials, SMS destination country, available sender, verified learner number, and agreed spending limits. No purchase or live text is needed to finish milestones 1–3.
+
+## 5. Lightweight dashboard
+
+Create `apps/web` with an authenticated, responsive progress view, activity calendar, vocabulary table, sense history, and settings. Reuse server-side progress definitions instead of recomputing separate metrics in the browser.
+
+Acceptance:
+
+- Dashboard values match the underlying practice events and SMS recap.
+- Two users cannot access each other's vocabulary, sessions, or settings.
+- Language filtering, empty states, mobile layout, keyboard navigation, and loading/error states work.
+- Refreshing or signing in on another device preserves progress.
+- Reminder and timezone settings affect the next applicable period as documented.
+
+## 6. Reminders and personal alpha
+
+Enable opted-in daily reminders, quiet hours, completion suppression, operational metrics, retention settings, backups, and deployment documentation. Run the complete Korean flow for several days and review false-positive assessments and message costs.
+
+Acceptance:
+
+- At most one reminder intent per learner/day; retries and restarts do not create extra intents.
+- Completed days and opted-out learners are skipped, including jobs already queued.
+- Midnight and daylight-saving transitions preserve streak and reminder behavior.
+- Restore a backup and reproduce progress from saved events.
+- Measure AI latency, SMS segments, failed jobs, and cost per completed session.
+- A week of real use identifies the next prioritized improvements.
+
+## Proposed repository structure
+
+```text
+apps/
+  api/                  # Authenticated API and validated provider webhooks
+  worker/               # Conversation jobs, delivery, and reminder processing
+  web/                  # Dashboard and development conversation simulator
+packages/
+  learning/             # Pure scheduling, eligibility, daily goals, streaks
+  languages/            # Vocabulary packs and language-specific evaluators
+  contracts/            # Validated API and AI schemas
+  db/                   # Schema, migrations, transaction helpers
+  messaging/            # SMS and simulator adapters
+  ai/                   # Real and fake provider implementations
+docs/
+  system-design.md
+  development-plan.md
+  decisions.md
+```
+
+## MVP release boundary
+
+The MVP is complete when Korean SMS conversations, persisted vocabulary practice, deterministic review scheduling, authenticated progress views, streaks, and opted-in reminders work together. A simulator or dashboard mockup alone is not the MVP. Additional languages should require a reviewed language pack and evaluator configuration, not a new scheduler.
