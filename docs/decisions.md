@@ -7,6 +7,8 @@
 - SMS is acceptable for the first version. Native iMessage is not required for v1.
 - Text conversations are the primary interface.
 - AI supports natural conversation; spaced repetition must be deterministic.
+- AI is limited to conversational testing and semantic grading, including spelling variation and permitted transliterations. Application code selects every tested word and updates its schedule.
+- Configurable words per session, English → Korean / Korean → English / mixed directions, and whether transliteration is accepted; generalized for other language pairs.
 - Maintain a vocabulary library and track how often each word is practiced.
 - Provide a lightweight web dashboard and streak mechanism.
 - Start with system design and a development plan before application implementation.
@@ -21,6 +23,9 @@ These are implementation defaults, not requirements supplied by the user.
 | Instruction language | English | Practical starting point; separate from target language |
 | Korean starting pack | Beginner daily conversation, polite 해요체 | Usable first experience; level remains configurable |
 | Session length | About 5–10 minutes | A manageable daily habit |
+| Words per session | 5 distinct senses; configurable 1–50 | Explicit session target, separate from the daily goal |
+| Direction | English → Korean; selectable reverse or mixed | Independent review history per direction |
+| Transliteration | Allowed initially; configurable | Accept meaning despite romanization variation; record answer form |
 | Daily goal | 5 distinct vocabulary senses with eligible recall attempts | Reward effort without rewarding repetition spam |
 | New vocabulary | At most 3 new senses per day | Avoid overwhelming the due queue |
 | Reminder | One per local day, only after time and consent are configured | No guessed reminder time or unsolicited messages |
@@ -29,6 +34,7 @@ These are implementation defaults, not requirements supplied by the user.
 | Messaging | Twilio SMS behind an adapter | Documented inbound webhooks and outbound messaging |
 | AI | Provider adapter with structured, validated output | Keep scheduling independent of a model or provider |
 | Backend | TypeScript API and worker; PostgreSQL | One language across app and domain code; durable transactions |
+| SRS deployment | Pure shared package inside the backend, no separate service | Keep scheduling and assessment commits transactional; avoid unnecessary network calls |
 | Dashboard | React, responsive, read-focused | Small surface for progress and vocabulary inspection |
 | Repository | Private GitHub repository | Appropriate default for a new personal project |
 

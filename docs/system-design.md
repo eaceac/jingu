@@ -9,13 +9,13 @@ Jingu is a text-first conversation partner with an explicit memory of the learne
 A typical session:
 
 1. The learner texts “practice” or replies to an opted-in reminder.
-2. The session planner selects overdue senses first, then due senses, then a bounded number of new senses. Selection is deterministic, with due time and stable ID as tie-breakers.
-3. AI builds a short scenario using those learning objectives. It may ask the learner to order food, describe a day, or make plans.
+2. The deterministic session planner selects specific review cards using due state, the configured session size, and translation direction. It persists the ordered plan before any AI call.
+3. AI receives the current selected word sense and direction and builds a conversational question around that objective. It may ask the learner to order food, describe a day, or make plans, but cannot select or replace the tested word.
 4. Each learner message receives a conversational response, with brief corrections when useful. Jingu records word exposure and usage separately from recall.
 5. Jingu occasionally asks a targeted recall question without revealing the answer. Eligible responses produce one recorded assessment for the review opportunity.
 6. The learner can say “done” at any time. Jingu summarizes progress, the daily goal, and the next due workload.
 
-Commands include practice, done, hint, progress, pause reminders, and language selection. Provider opt-out commands are processed before AI. “Done” ends a learning session; STOP opts out of messaging. Ordinary conversational intent can be classified by AI, but permission changes and state transitions pass through explicit application handlers.
+Commands include practice, done, hint, progress, pause reminders, and language selection. Provider opt-out commands are processed before AI. “Done” ends a learning session; STOP opts out of messaging. Commands and settings use explicit application handlers, not a separate AI intent-classification call. AI calls are limited to conversational testing, explanations, and grading.
 
 ## Architecture
 
@@ -40,27 +40,32 @@ flowchart LR
 
 Keep the first deployment a modular monolith with an API process and a worker process. Avoid separate microservices. PostgreSQL-backed jobs and an outbox are sufficient initially; add a separate queue only when measured load justifies it.
 
+The SRS engine should be its own package (`packages/learning`), not its own deployed service for v1. The worker invokes it directly, and the application persists its output in the same transaction as the accepted assessment. The worker is a separate process to handle slow AI and messaging operations; that does not require a separate SRS service or network hop. Consider extracting a service only if multiple independent applications need scheduling or independent scaling/ownership becomes necessary.
+
 The learning engine is a pure module. It accepts explicit state, timestamps, and validated events, and returns the next state. It does not call AI, the database, the system clock, or a messaging service.
 
 ## AI boundary
 
-AI owns scenario generation, explanations, conversational replies, and proposed semantic assessments. It receives a bounded conversation window, learner settings, and selected vocabulary IDs. It cannot directly update a schedule, create arbitrary vocabulary records, set a streak, or send a message.
+AI owns conversational testing of the selected word, explanations, conversational replies, and proposed semantic assessments. It receives a bounded conversation window, the active word sense and reference examples, translation direction, and a snapshot of grading settings. It cannot select the next word, reorder the queue, expand session size, update settings, directly update a schedule, create arbitrary vocabulary records, set a streak, or send a message. Reminders, progress summaries, queue selection, and daily-goal calculations use application code and templates.
 
-An assessment proposal includes an opportunity ID, vocabulary sense ID, exact evidence span from the learner message, outcome, hint use, and a concise explanation. Application code validates:
+The turn sequence is: deterministic planner selects card → AI asks a question about that card → learner answers → AI proposes a semantic grade → application validates and maps the result to a rating → SRS computes the next due time → application advances to the next planned card. Grading and next-card prompt generation are logically separate; a follow-up generation call can only use a next card already selected by application code. No separate AI extraction pass is used to mine incidental words from conversation; optional usage observations can accompany an existing grading response and must pass validation.
+
+An assessment proposal includes an opportunity ID, vocabulary sense ID, direction, exact evidence span from the learner message, semantic outcome (`correct`, `incorrect`, or `uncertain`), answer form (`native_script`, `transliteration`, or `mixed`), spelling/meaning notes, and a concise explanation. Hint state comes from the application's opportunity record, not a model assertion. Application code validates:
 
 - The opportunity belongs to this learner and session and remains open.
 - The sense is part of the planned opportunity.
+- The direction and grading-policy version match the opportunity snapshot.
 - The cited evidence exists in the learner message.
 - The output conforms to its schema and allowed outcomes.
 - The same opportunity has not already been assessed.
 
-Ambiguous or invalid proposals produce clarification rather than advancement. Model-reported confidence alone is not evidence of correctness. For tightly scoped recall checks, accepted answers can be evaluated with deterministic language-pack rules. For open conversation, semantic correctness remains probabilistic even when the resulting scheduler is deterministic.
+Ambiguous or invalid proposals produce clarification rather than advancement. Model-reported confidence alone is not evidence of correctness. AI grades meaning in context rather than requiring exact-string equality, using the curated sense and examples as reference. It can accept minor misspellings, valid inflections, equivalent English meanings, and alternate romanizations when the grading policy allows them. A spelling difference that changes the intended sense must not automatically pass. Semantic grading remains probabilistic even though selection and schedule transitions are deterministic; schema validation cannot prove that a semantic judgment is correct.
 
 Persist accepted assessments and model/prompt versions. Replay saved assessments; do not rerun AI to rebuild history. A temperature setting is not a determinism guarantee. If an assessment is corrected, append a correction event and recompute affected state from the event history.
 
 ## Vocabulary and Korean support
 
-Vocabulary is a structured library, not an unbounded list extracted by AI. Each item represents a particular sense and may be a word or a multiword expression. Separate recognition and production review cards; v1 conversation focuses on production.
+Vocabulary is a structured library, not an unbounded list extracted by AI. Each item represents a particular sense and may be a word or a multiword expression. Maintain separate review cards for English → Korean (production) and Korean → English (recognition), generalized to source and target language IDs. Both directions are available in v1; success in one never advances the other.
 
 Each entry includes:
 
@@ -68,7 +73,7 @@ Each entry includes:
 - Examples, accepted variants, optional pronunciation/romanization, and provenance or license.
 - For Korean: Hangul canonical forms, reviewed inflections, politeness/register notes, and optional segmentation hints.
 
-Store Unicode NFC text. Do not treat Korean as English-style whitespace tokens or count arbitrary substrings as vocabulary matches. For example, 먹다 and 먹어요 may refer to the same underlying verb sense, while similarly spelled words may not. Use curated variants for constrained checks; semantic assessment handles broader contexts subject to validation. Do not strip distinctions that change meaning.
+Store Unicode NFC text. Do not treat Korean as English-style whitespace tokens or count arbitrary substrings as vocabulary matches. For example, 먹다 and 먹어요 may refer to the same underlying verb sense, while similarly spelled words may not. Curated variants inform AI grading rather than acting as an exhaustive exact-match whitelist. Do not strip distinctions that change meaning.
 
 New languages supply language packs and evaluation hooks. The scheduler only sees IDs, ratings, timestamps, and policy versions. No Korean-specific branching belongs in the scheduling engine. First Korean alpha pack: approximately 50 reviewed everyday senses, written for the project or sourced with explicit reuse rights.
 
@@ -89,6 +94,12 @@ Casual use of a not-yet-due word adds usage history without repeatedly pushing i
 
 ## Deterministic scheduler v1
 
+Word selection and interval updates both belong to this engine. Given the same card state, settings snapshot, explicit time, and accepted history, it returns the same ordered plan and next due times without AI.
+
+For a single-direction session, filter to that direction, select due cards ordered by dueAt then stable card ID, and fill remaining slots with new senses in pack order subject to the daily new-sense limit. Overdue cards naturally sort first. Never silently fill with not-yet-due cards. If eligible material is insufficient, return a shorter plan and explain why. Optional extra practice does not reschedule not-yet-due cards.
+
+For mixed mode, build the two eligible queues and alternate directions, starting with the direction whose earliest due card is oldest (production first on a tie or when both have only new cards). Skip a sense already selected in the session so the reverse prompt cannot immediately reveal its answer. If a queue is exhausted, fill from the other. Preserve due-before-new priority globally: alternate across due queues first, then across new queues. This is a deterministic best-effort mix, not a guaranteed 50/50 ratio. A new sense consumes the daily introduction allowance once across directions; introducing its reverse card later does not consume a second allowance.
+
 Use a transparent interval ladder, versioned as `ladder-v1`: 1, 3, 7, 14, 30, 60, 120, 240 days. This is a pragmatic initial policy, not a claim of optimal retention. A later FSRS implementation can replace it through an explicit versioned migration after sufficient review history exists.
 
 Card state: stage (initially -1), dueAt, lastReviewedAt, successfulReviews, lapses, reviewCount, and policyVersion. Explicit server-received UTC timestamps are inputs. Scheduling days mean 24-hour durations; calendar-day goals and streaks use local dates separately.
@@ -106,6 +117,22 @@ Within one database transaction, lock the card, insert the uniquely keyed accept
 
 Scheduler tests cover exact transitions, stage caps, failures, hints, duplicate event replay, out-of-order events, and deterministic selection. Storage-level uniqueness and transaction tests cover concurrent deliveries; a pure scheduler alone cannot provide exactly-once effects.
 
+## Practice settings
+
+Store preferences per learner and language pair; instruction language is a separate setting. The dashboard exposes these controls, with explicit SMS commands such as `settings`, `words 10`, `direction mixed`, and `transliteration on` using the same validated settings API.
+
+| Setting | Allowed values | Proposed initial default |
+| --- | --- | --- |
+| `wordsPerSession` | Integer 1–50 | 5 distinct word senses |
+| `directionMode` | `source_to_target`, `target_to_source`, `mixed` | English → Korean |
+| `allowTransliteration` | Boolean | true |
+
+Session size counts distinct senses, not messages or follow-up attempts. The daily streak goal remains a separate setting; two sessions can contribute toward the same daily goal. A mixed session tests each selected sense in only one direction.
+
+When transliteration is allowed, a recognizable romanization can receive the same semantic credit as native script, even when it differs from a canonical romanization. When disabled, a Korean answer written only in romanization cannot pass; Jingu asks for Hangul. Store such a response as a format mismatch without accepting a review grade or advancing the schedule; a later conforming answer is graded within the same opportunity. Mixed-script responses are judged on the target-word evidence, not Latin characters elsewhere in the message. Hangul spelling mistakes still receive semantic grading. In Korean → English mode, English answers are expected and are not rejected as Korean transliteration; Korean prompts use Hangul in either setting.
+
+Snapshot session size and direction when creating the plan, and snapshot grading policy for each opportunity. Default-setting changes apply to the next session, so an in-flight answer is never judged under a silently changed rule. Record answer form and policy version on assessments so the dashboard can distinguish romanized from Hangul recalls. Changing transliteration preference does not erase history or reset the schedule; strict Hangul-only mastery is not inferred from earlier romanized success.
+
 ## Streaks and daily progress
 
 Proposed daily goal: eligible recall attempts for five distinct senses across any learning languages. Incorrect attempts count toward effort; passive exposure and repeated attempts on the same sense do not increase the daily distinct-sense goal. Successful recall remains visible separately.
@@ -121,15 +148,15 @@ Display “today complete” separately from current streak. No freeze or grace-
 | Entity | Important fields and constraints |
 | --- | --- |
 | users | ID, timezone, instruction language, goal, reminder settings |
-| learning_profiles | User + target language unique; level, active pack, topic preferences |
+| learning_profiles | User + source/target language pair unique; level, active pack, topics, wordsPerSession, directionMode, allowTransliteration, settings version |
 | channel_accounts | User, provider, encrypted address, lookup hash, verification and consent state |
 | vocab_senses | ID, language, canonical form, gloss, examples, level, source |
 | vocab_variants | Sense ID, accepted form, normalization/register metadata |
-| review_cards | User + sense + skill unique; scheduler state and version |
-| sessions | User, target language, scenario, status, started/ended timestamps |
+| review_cards | User + sense + source/target pair + direction unique; scheduler state and version |
+| sessions | User, language pair, ordered selected card IDs, settings snapshot, scenario, status, started/ended timestamps |
 | messages | Provider + external ID unique for inbound; direction, session, body, timestamps, delivery status |
-| review_opportunities | User, card, session, prompt message, hint state, expected card version, status |
-| assessments | Opportunity ID unique, evidence, rating, evaluator version, timestamp |
+| review_opportunities | User, card, session, prompt message, grading-policy snapshot, hint state, expected card version, status |
+| assessments | Opportunity ID unique, evidence, semantic outcome, answer form, direction, accepted rating, evaluator/policy versions, timestamp |
 | practice_events | User, sense, message, event type; unique deduplication key |
 | daily_progress | User + local date unique; qualification and goal snapshot |
 | jobs / outbox | Unique operation key, payload, status, attempts, lease, next attempt |
@@ -160,7 +187,8 @@ The dashboard supports the texting habit. Initial views:
 - Activity: local-date calendar and practice totals by language.
 - Vocabulary: searchable senses with exposures, uses, recall attempts, successful recalls, and next due time.
 - Sense detail: review history and rating explanations.
-- Settings: active language, timezone, reminder time, and pause state.
+- Settings: active language pair, words per session, translation direction (including mixed), transliteration policy, daily goal, timezone, reminder time, and pause state.
+- Direction-specific review history and answer-form labels, so romanized recall is not presented as demonstrated Hangul production.
 
 Use authenticated server queries, scoped to the signed-in learner. Link a verified messaging address during onboarding. Do not authenticate dashboard access using a phone number in a query parameter. Use real empty states and clearly labeled simulator data during development.
 

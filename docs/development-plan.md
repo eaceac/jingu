@@ -14,11 +14,13 @@ Done when the design and milestones can be reviewed from the repository. No appl
 
 Create a TypeScript workspace with `packages/learning`, `packages/languages`, `packages/contracts`, and `packages/db`. Add a test runner, type checking, reproducible dependency lockfile, and CI. Record runtime versions explicitly.
 
-Implement the scheduler, due selection, eligible-review rules, practice event definitions, local-date daily goals, and streak computation. Add PostgreSQL migrations with unique constraints and transaction helpers. Create a small reviewed Korean seed pack; expand to approximately 50 senses before alpha. Include a second-language fixture to prove the shared engine does not depend on Korean.
+Implement the scheduler as an in-process package, due selection, eligible-review rules, practice event definitions, local-date daily goals, and streak computation. Add language-pair settings, independent directional cards, deterministic mixed-mode selection, session-plan snapshots, and grading-policy snapshots. Add PostgreSQL migrations with unique constraints and transaction helpers. Create a small reviewed Korean seed pack; expand to approximately 50 senses before alpha. Include a second-language fixture to prove the shared engine does not depend on Korean.
 
 Acceptance:
 
 - Fixed inputs produce identical schedules and queue order.
+- Session size, short queues, mixed-mode ties, global due-before-new priority, and daily new-sense limits produce the documented deterministic plan without AI calls.
+- English → Korean reviews do not advance Korean → English cards; mixed sessions never test the same sense twice.
 - Repeating a word in a message or retrying a webhook does not inflate counts.
 - Exposure and incidental usage cannot advance a review card.
 - Hints, failures, maximum intervals, stale assessments, and missing dates behave as documented.
@@ -35,15 +37,19 @@ Acceptance:
 - Inspect why each vocabulary count and due date changed.
 - Complete the daily goal and see the correct streak without changing system time; use an injected test clock.
 - A second language can be selected without changing the scheduling code.
+- Changing default settings leaves an existing session's ordered plan and grading policy unchanged.
 
 ## 3. AI conversation
 
-Implement an AI adapter with structured output, bounded context, schema validation, semantic assessment proposals, stored model/prompt versions, timeout handling, and cost limits. Add scenario selection and short Korean corrections. Keep deterministic recall checks where accepted answers are well-defined.
+Implement an AI adapter with structured output, bounded context, schema validation, semantic assessment proposals, stored model/prompt versions, timeout handling, and cost limits. Generate conversational prompts only for application-selected cards, and grade meaning using the opportunity's direction and transliteration policy. Commands, settings, reminders, summaries, and word selection do not invoke AI.
 
 Acceptance:
 
 - Conversations naturally practice selected words across several topics.
 - Korean inflections, particles, politeness variants, multiword expressions, ambiguous evidence, and wrong answers are evaluated against a small curated assessment set.
+- Evaluate minor typos versus meaning-changing errors, alternate romanizations with transliteration on/off, mixed-script answers, and equivalent English meanings in reverse mode.
+- Disallowed transliteration yields a format clarification without a committed grade; a conforming follow-up can complete the same opportunity.
+- AI cannot replace the selected word or direction; recorded call traces show only conversation/grading calls, never queue selection or separate usage-mining calls.
 - Invalid vocabulary IDs and invented evidence are rejected.
 - A learner cannot change scheduling rules or write arbitrary grades through a prompt.
 - AI failures preserve progress and produce the fallback flow.
@@ -75,6 +81,7 @@ Acceptance:
 - Language filtering, empty states, mobile layout, keyboard navigation, and loading/error states work.
 - Refreshing or signing in on another device preserves progress.
 - Reminder and timezone settings affect the next applicable period as documented.
+- Users can change words per session, direction, and transliteration policy through validated dashboard controls and explicit SMS commands; direction-specific history and answer forms remain visible.
 
 ## 6. Reminders and personal alpha
 

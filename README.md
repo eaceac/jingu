@@ -2,7 +2,7 @@
 
 Daily language practice through text conversations, with deterministic spaced repetition and a lightweight progress dashboard.
 
-**Starting point:** Korean over SMS. Multiple languages are a core data-model requirement. AI generates conversations and proposes assessments; application code owns vocabulary records, review schedules, practice counts, and streaks.
+**Starting point:** Korean over SMS. Multiple languages are a core data-model requirement. AI asks conversational questions about application-selected words and grades meaning, including spelling variation and allowed transliterations. Deterministic application code selects every tested word and owns vocabulary records, review schedules, practice counts, and streaks. Users configure session size, translation direction (forward, reverse, or mixed), and transliteration acceptance.
 
 ## Project status
 
