@@ -143,9 +143,24 @@ Proposed daily goal: eligible recall attempts for five distinct senses across an
 
 Store a qualifying local date when the goal is reached, using the learner's configured IANA timezone. Persist event-time local date and timezone; do not relabel past practice after a timezone change. Apply timezone changes to the next daily period to avoid duplicate qualification.
 
-Current streak is the consecutive run of qualifying dates ending today, or ending yesterday if today is still incomplete. If neither today nor yesterday qualifies, current streak is zero. Longest streak is the longest consecutive run in stored qualifying dates. Compare calendar dates, not elapsed 24-hour chunks, to handle daylight saving time.
+Include a one-day streak hold: at least one eligible distinct-sense recall attempt can bridge a partial-practice day without increasing the streak count. Proposed policy: holds activate automatically and cannot be used on consecutive days. A full-goal day restores hold eligibility. There are no banked holds, retroactive holds, or zero-practice holds.
 
-Display “today complete” separately from current streak. No freeze or grace-day system in v1. Do not reset a streak because an SMS delivery failed; qualification derives from accepted practice events.
+| Local-day result | Effect |
+| --- | --- |
+| Full goal reached | Add one to the active streak, or start a new streak at one if the previous chain broke |
+| At least one eligible sense attempted, below goal, yesterday was a completed day in an active streak | Preserve the count for this day; record a hold |
+| Partial practice after a held day | No second hold; completing the full goal before day-end is required to preserve the chain |
+| No eligible practice by day-end | Break the chain |
+
+A hold cannot start or revive a streak. Correctness is not required: an accepted incorrect recall attempt qualifies as practice just as it does for the daily goal. Passive exposure, ungraded chat, format-only clarifications, and duplicate events do not qualify. If the daily goal is one word, one eligible word completes it normally; there is no partial-practice range for that goal.
+
+Compute the streak by walking local dates in order. Completed days increment the count, held days preserve it, and missed days reset it. The longest streak is the maximum completed-day count within a chain bridged only by valid single-day holds; held days never increase current or longest counts. Compare calendar dates, not elapsed 24-hour chunks, to handle daylight saving time.
+
+During an unfinished current day, retain the chain through yesterday and show what is needed today. After a held day, display “Complete today's goal to keep your streak”; do not reset it until the local day ends unsuccessfully. A partial day that is eligible for a hold can still become complete later that day: replace its held status with complete and increment the count exactly once. Day-end finalization must be idempotent; reads derive the correct state even if the scheduled finalization job is delayed. Use persisted server receipt times for day attribution, so delayed grading of an on-time message can recompute that day's result without permitting a newly sent message to backfill yesterday.
+
+Example with a five-word goal: Monday completes the goal → streak 1; Tuesday practices one word → streak still 1, held; Wednesday completes the goal → streak 2. If Wednesday instead ends with only one word, the streak breaks; Thursday completing the goal starts at 1.
+
+Display distinct calendar states for complete, held, partial, and missed days, plus an in-progress state for today with no practice yet. SMS recaps for held days say “Streak held at 7. Complete your goal tomorrow to keep it going,” rather than claiming an eighth completed day. Show hold eligibility and today's remaining requirement on the dashboard. Holds affect streak continuity only: they do not advance vocabulary schedules, mark the daily goal complete, or defer overdue cards. Do not reset a streak because an SMS delivery failed; qualification derives from accepted practice events.
 
 ## Data model
 
@@ -162,7 +177,7 @@ Display “today complete” separately from current streak. No freeze or grace-
 | review_opportunities | User, card, session, prompt message, grading-policy snapshot, hint state, expected card version, status |
 | assessments | Opportunity ID unique, evidence, semantic outcome, answer form, direction, accepted rating, evaluator/policy versions, timestamp |
 | practice_events | User, sense, message, event type; unique deduplication key |
-| daily_progress | User + local date unique; qualification and goal snapshot |
+| daily_progress | User + local date unique; distinct eligible senses, goal/timezone snapshot, complete/held/partial/missed status, completion time, streak-policy version; derivable from practice events |
 | jobs / outbox | Unique operation key, payload, status, attempts, lease, next attempt |
 
 Use foreign keys and ownership checks. Derived counts can initially be queried from events; add materialized projections only when needed. Preserve assessment/event history for replay, with a defined account deletion path. Raw conversations should have a configurable retention policy; durable learning events need not retain entire messages indefinitely.
@@ -187,7 +202,7 @@ One scheduled scan creates reminder jobs for opted-in learners within their conf
 The dashboard supports the texting habit. Initial views:
 
 - Today: distinct senses practiced versus goal, due count, and next reminder.
-- Streak: current, longest, and today-complete state.
+- Streak: current, longest, today-complete/held state, hold eligibility, and the practice required to preserve the chain; held dates are visibly different from completed dates.
 - Activity: local-date calendar and practice totals by language.
 - Vocabulary: searchable senses with exposures, uses, recall attempts, successful recalls, and next due time.
 - Sense detail: review history and rating explanations.

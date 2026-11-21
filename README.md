@@ -20,6 +20,8 @@ Design phase. This repository contains the proposed system design and developmen
 4. Finish with a recap of words practiced, reviews completed, and daily progress.
 5. Open the dashboard to see practice history, upcoming reviews, and streaks.
 
+Completing the daily goal increases your streak. On a busy day, practicing one word can hold an existing streak for a day without adding to its count; complete the full goal the next day to keep it going.
+
 ## Proposed implementation
 
 TypeScript monorepo: web dashboard, API, background worker, shared learning engine, language packs, and messaging adapters. PostgreSQL stores durable state and jobs. SMS is the first adapter; a browser simulator supports development without sending texts.

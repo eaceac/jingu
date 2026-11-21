@@ -12,6 +12,7 @@
 - Configurable words per session, English → Korean / Korean → English / mixed directions, and whether transliteration is accepted; generalized for other language pairs.
 - Maintain a vocabulary library and track how often each word is practiced.
 - Provide a lightweight web dashboard and streak mechanism.
+- Completing the daily practice goal increases the streak. Practicing one word can preserve an existing streak for one day without increasing its count.
 - Start with system design and a development plan before application implementation.
 
 ## Proposed defaults
@@ -31,6 +32,7 @@ These are implementation defaults, not requirements supplied by the user.
 | New vocabulary | At most 3 new senses per day | Avoid overwhelming the due queue |
 | Reminder | One per local day, only after time and consent are configured | No guessed reminder time or unsolicited messages |
 | Streak scope | Overall learner streak plus per-language activity | Switching languages should still support the daily habit |
+| One-day streak hold | Automatically preserve an existing streak on a partial-practice day; no consecutive holds | Proposed interpretation of a one-day extension; a full-goal day restores eligibility |
 | Scheduler | Explicit, versioned interval ladder v1 | Transparent, deterministic, easy to test; no efficacy claim |
 | Messaging | Twilio SMS behind an adapter | Documented inbound webhooks and outbound messaging |
 | AI | Provider adapter with structured, validated output | Keep scheduling independent of a model or provider |
@@ -50,4 +52,4 @@ These are implementation defaults, not requirements supplied by the user.
 
 ## Deferred
 
-Native iMessage, voice/audio, speech assessment, social leaderboards, streak freezes, billing, adaptive scheduler optimization, and integration with an existing language app are outside the initial MVP. Jingu is a standalone practice tool; it does not automate completion of another app's lessons.
+Native iMessage, voice/audio, speech assessment, social leaderboards, banked or purchased streak freezes, billing, adaptive scheduler optimization, and integration with an existing language app are outside the initial MVP. The one-word, one-day streak hold is included. Jingu is a standalone practice tool; it does not automate completion of another app's lessons.

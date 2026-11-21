@@ -25,6 +25,9 @@ Acceptance:
 - Exposure and incidental usage cannot advance a review card.
 - Hints, failures, maximum intervals, stale assessments, and missing dates behave as documented.
 - Timezone and daylight-saving boundary tests pass.
+- One eligible word preserves an existing streak for one day without increasing current or longest counts; zero practice and consecutive partial days break it after day-end.
+- Holds cannot start or revive a streak; a later full goal upgrades a held day exactly once. A one-word daily goal completes normally, and a full day after a hold restores hold eligibility.
+- Midnight, delayed grading of on-time messages, repeated day finalization, and late finalization jobs yield the same event-derived streak state.
 - Database concurrency tests demonstrate one committed assessment per opportunity.
 
 ## 2. Complete local practice loop
@@ -36,6 +39,7 @@ Acceptance:
 - Start a Korean session, complete reviews, finish it, restart the server, and recover the same durable progress.
 - Inspect why each vocabulary count and due date changed.
 - Complete the daily goal and see the correct streak without changing system time; use an injected test clock.
+- Simulate complete → held → complete and complete → held → partial days; verify counts, day-end reset, and SMS recap wording.
 - A second language can be selected without changing the scheduling code.
 - Changing default settings leaves an existing session's ordered plan and grading policy unchanged.
 
@@ -83,6 +87,7 @@ Acceptance:
 - Two users cannot access each other's vocabulary, sessions, or settings.
 - Language filtering, empty states, mobile layout, keyboard navigation, and loading/error states work.
 - Refreshing or signing in on another device preserves progress.
+- Activity calendars distinguish completed and held days; a hold leaves the streak count unchanged and shows the next-day full-goal requirement.
 - Reminder and timezone settings affect the next applicable period as documented.
 - Users can change words per session, direction, and transliteration policy through validated dashboard controls and explicit SMS commands; direction-specific history and answer forms remain visible.
 
