@@ -12,6 +12,7 @@
 - Configurable words per session, English → Korean / Korean → English / mixed directions, and whether transliteration is accepted; generalized for other language pairs.
 - Maintain a vocabulary library and track how often each word is practiced.
 - Provide a lightweight web dashboard and streak mechanism.
+- Make a beautiful game-style garden the dashboard centerpiece, visibly growing with daily practice to encourage returning each day.
 - Completing the daily practice goal increases the streak. Practicing one word can preserve an existing streak for one day without increasing its count.
 - Start with system design and a development plan before application implementation.
 
@@ -39,6 +40,7 @@ These are implementation defaults, not requirements supplied by the user.
 | Backend | TypeScript API and worker; PostgreSQL | One language across app and domain code; durable transactions |
 | SRS deployment | Pure shared package inside the backend, no separate service | Keep scheduling and assessment commits transactional; avoid unnecessary network calls |
 | Dashboard | React, responsive, read-focused | Small surface for progress and vocabulary inspection |
+| Garden growth | One permanent growth step per completed daily goal; holds preserve without growth | Proposed reward mapping aligned with daily streak rules; missed days do not destroy earned plants |
 | Repository | Private GitHub repository | Appropriate default for a new personal project |
 
 ## Resolve during implementation

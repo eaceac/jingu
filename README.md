@@ -20,6 +20,8 @@ Design phase. This repository contains the proposed system design and developmen
 4. Finish with a recap of words practiced, reviews completed, and daily progress.
 5. Open the dashboard to see practice history, upcoming reviews, and streaks.
 
+The dashboard centers on an illustrated game-style garden that grows with each completed practice day. Held days preserve it without adding growth, and missed days never erase earned plants.
+
 Completing the daily goal increases your streak. On a busy day, practicing one word can hold an existing streak for a day without adding to its count; complete the full goal the next day to keep it going.
 
 ## Proposed implementation

@@ -199,8 +199,25 @@ One scheduled scan creates reminder jobs for opted-in learners within their conf
 
 ## Dashboard
 
-The dashboard supports the texting habit. Initial views:
+The dashboard supports the texting habit, with a beautiful game-style garden as its centerpiece. Proposed visual direction: a lush, softly lit isometric garden with painterly game art, flowering plants, stepping stones, and gentle ambient motion. The garden occupies the main view; compact progress controls and vocabulary details remain readable beside or below it. This is an art direction to review, not a finished UI.
 
+### Garden rewards
+
+- Completing the daily goal awards exactly one permanent growth step for that learner/local date, even across multiple sessions or languages. Show a small growth animation when completion is first observed; progress updates whether practice happened over SMS or in the simulator.
+- Proposed progression: each five growth steps develops one planting through seed, sprout, leaves, bud, and bloom. Then start the next planting. Use stable ordered planting slots and unlock additional beds as needed, so growth continues beyond the first week. The first completed day visibly adds a planted seed rather than requiring five days for feedback.
+- A one-word streak hold gives a gentle watering effect and a held-day label, but no growth step or additional streak count. Partial practice ineligible for a hold shows ordinary daily progress without a hold reward.
+- Missing a day pauses growth. Existing plants remain: resetting the streak does not erase the garden earned through past practice. Garden size represents total completed days, while the streak represents the current practice chain.
+- Multiple visits, webhook retries, or repeated completions of the same day never award extra growth. A held day upgraded to complete later earns one step. Recompute from canonical daily results after corrections rather than accumulating irreversible client-side rewards.
+
+Render the garden deterministically from completed-day records and a versioned progression/art mapping. Use pre-created illustrated assets and lightweight CSS/canvas animation; do not make runtime AI/image-generation calls to grow the garden. Store a per-user last-seen reward marker only for animation delivery, not as the source of earned progress. The dashboard API supplies completion count, growth stage/planting slots, current daily state, and hold eligibility, scoped to the authenticated learner.
+
+Keep progress labels as accessible HTML, support reduced motion with a static growth state, and provide a text equivalent such as “12 completed practice days · 2 blooming plants · 1 sprout.” Garden interactions are optional for practicing: no watering chore or click is needed to claim a reward. On mobile, preserve the garden focal point and put essential progress immediately below it.
+
+### Progress views
+
+Initial views:
+
+- Garden: cumulative completed-day growth, today's practice progress, and an explicit complete/held/in-progress label.
 - Today: distinct senses practiced versus goal, due count, and next reminder.
 - Streak: current, longest, today-complete/held state, hold eligibility, and the practice required to preserve the chain; held dates are visibly different from completed dates.
 - Activity: local-date calendar and practice totals by language.

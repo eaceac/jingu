@@ -81,9 +81,14 @@ Needs before activation: provider credentials, SMS destination country, availabl
 
 Create `apps/web` with an authenticated, responsive progress view, activity calendar, vocabulary table, sense history, and settings. Reuse server-side progress definitions instead of recomputing separate metrics in the browser.
 
+Make the garden the visual centerpiece. Review a game-art concept, prepare reusable planting-stage assets, and implement the deterministic five-stage planting progression from completed-day records. Add gentle completion and hold feedback, responsive layout, reduced-motion behavior, and accessible text equivalents. Image generation is an asset-authoring tool only, not part of runtime practice or garden updates.
+
 Acceptance:
 
 - Dashboard values match the underlying practice events and SMS recap.
+- Every completed local day grants one garden growth step across sessions/languages; holds grant no growth, and missed days preserve already earned plants.
+- Replayed webhooks, refreshes, multiple devices, held-to-complete upgrades, and corrected daily results produce the same garden from canonical history.
+- A new completed day produces visible growth at every stage, including after the first bed is full; reduced-motion mode preserves all progress information.
 - Two users cannot access each other's vocabulary, sessions, or settings.
 - Language filtering, empty states, mobile layout, keyboard navigation, and loading/error states work.
 - Refreshing or signing in on another device preserves progress.
