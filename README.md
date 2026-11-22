@@ -6,11 +6,32 @@ Daily language practice through text conversations, with deterministic spaced re
 
 ## Project status
 
-Design phase. This repository contains the proposed system design and development plan, not a working application yet. No messaging service, AI provider, or website has been provisioned.
+Implementation started: deterministic scheduling and session planning, grading-policy validation, streak holds and garden projections, a 50-sense draft Korean pack, and transactional PostgreSQL persistence are implemented with tests. A scripted foundation demo is runnable locally. Live conversation, SMS, dashboard UI, and reminders are not implemented yet. No external messaging service or AI provider has been provisioned.
 
 - [System design](docs/system-design.md): user flow, architecture, data model, scheduling, and reliability.
 - [Development plan](docs/development-plan.md): ordered milestones and acceptance criteria.
 - [Decisions](docs/decisions.md): confirmed requirements, proposed defaults, and open questions.
+- [Garden concept](docs/garden-concept.md): view the illustrated dashboard direction.
+
+## Run the foundation
+
+Requires Node 22.18 or newer (the target CI version is pinned in `.nvmrc`).
+
+```sh
+npm ci
+npm run check
+npm run demo
+```
+
+The demo uses fixed inputs and a clearly labeled model-output fixture; it sends no messages and does not grade live answers. `npm run check` type-checks the TypeScript sources and runs the tests. PostgreSQL tests explicitly skip unless `TEST_DATABASE_URL` is set. To run all tests, use a dedicated local test database:
+
+```sh
+TEST_DATABASE_URL=postgres://localhost/jingu_test npm run check
+```
+
+The database test user needs permission to create schemas; tests isolate their data in a temporary schema and remove that schema afterward. The [CI template](docs/ci/check.yml) provisions PostgreSQL 17 and includes these tests. GitHub CI is not active: the current GitHub credential lacks workflow scope, so move the template to `.github/workflows/check.yml` using a workflow-authorized credential to activate it. See [database setup](packages/db/README.md) for migration and persistence contracts.
+
+The initial daily new-word allowance is five, matching the default daily goal. Vocabulary entries are original draft learning material and still need pedagogical review before alpha. AI grading quality is not tested by fixed-output fixtures; that evaluation belongs to the live-AI milestone.
 
 ## Product loop
 

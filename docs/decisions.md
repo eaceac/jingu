@@ -30,7 +30,7 @@ These are implementation defaults, not requirements supplied by the user.
 | Direction | English → Korean; selectable reverse or mixed | Independent review history per direction |
 | Transliteration | Allowed initially; configurable | Accept meaning despite romanization variation; record answer form |
 | Daily goal | 5 distinct vocabulary senses with eligible recall attempts | Reward effort without rewarding repetition spam |
-| New vocabulary | At most 3 new senses per day | Avoid overwhelming the due queue |
+| New vocabulary | At most 5 new senses per day | Match the initial five-word daily goal so a new learner can complete day one; configurable |
 | Reminder | One per local day, only after time and consent are configured | No guessed reminder time or unsolicited messages |
 | Streak scope | Overall learner streak plus per-language activity | Switching languages should still support the daily habit |
 | One-day streak hold | Automatically preserve an existing streak on a partial-practice day; no consecutive holds | Proposed interpretation of a one-day extension; a full-goal day restores eligibility |

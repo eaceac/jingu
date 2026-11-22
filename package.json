@@ -1,0 +1,20 @@
+{
+  "name": "jingu",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.18.0" },
+  "scripts": {
+    "test": "node --import tsx --test packages/learning/*.test.ts packages/languages/*.test.ts packages/db/test/*.test.ts",
+    "demo": "node --import tsx apps/simulator/demo.ts",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm test"
+  },
+  "dependencies": { "pg": "^8.16.0" },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.15.0",
+    "tsx": "^4.20.0",
+    "typescript": "~5.9.0"
+  }
+}

@@ -1,6 +1,10 @@
 # Development plan
 
-Build one complete practice loop, then connect external services. Milestones below are ordered; each has an observable acceptance gate. This is the proposed build sequence, not a list of completed features.
+Build one complete practice loop, then connect external services. Milestones below are ordered; each has an observable acceptance gate.
+
+Implementation update (2026-11-22): the milestone 1 code foundation is implemented, including deterministic selection/scheduling, grading-policy validation, settings snapshots, streak/garden reducers, a 50-sense draft Korean pack, SQL migrations, and transactional review commits. Unit and real-PostgreSQL integration tests cover these modules. The vocabulary still needs pedagogical review. `npm run demo` exercises the foundation with fixed fixtures; it is not yet the persistent conversational simulator required by milestone 2. Live AI/SMS, dashboard UI, and reminders remain unimplemented.
+
+All 35 tests and TypeScript checks passed locally, including 11 PostgreSQL integration tests. CI configuration is provided at `docs/ci/check.yml`; activation is pending a GitHub credential with workflow permission. The current credential cannot push `.github/workflows/` files.
 
 ## 0. Design and repository
 
