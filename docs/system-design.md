@@ -201,12 +201,12 @@ One scheduled scan creates reminder jobs for opted-in learners within their conf
 
 ## Dashboard
 
-The dashboard supports the texting habit, with a beautiful game-style garden as its centerpiece. Proposed visual direction: a lush, softly lit isometric garden with painterly game art, flowering plants, stepping stones, and gentle ambient motion. The garden occupies the main view; compact progress controls and vocabulary details remain readable beside or below it. This is an art direction to review, not a finished UI.
+The site opens directly to the dashboard after authentication. Daily progress, streak, words practiced, and recent activity are the primary interface. A contained garden illustration adds motivation: one empty wooden garden box with bare soil initially, against a simple, dreamy oil-painted landscape with visible brushwork. Keep the surrounding scene quiet and uncluttered, with no elaborate buildings or dense decorative elements. The current [visual concept](garden-concept.md) supersedes the earlier full-screen lush garden direction. This is an art direction, not a finished UI.
 
 ### Garden rewards
 
 - Completing the daily goal awards exactly one permanent growth step for that learner/local date, even across multiple sessions or languages. Show a small growth animation when completion is first observed; progress updates whether practice happened over SMS or in the simulator.
-- Proposed progression: each five growth steps develops one planting through seed, sprout, leaves, bud, and bloom. Then start the next planting. Use stable ordered planting slots and unlock additional beds as needed, so growth continues beyond the first week. The first completed day visibly adds a planted seed rather than requiring five days for feedback.
+- Proposed progression: start with exactly one empty box; each five growth steps develops one planting through seed, sprout, leaves, bud, and bloom. Then start the next planting within that box. Use stable ordered planting slots; additional beds are a later progression option, not part of the starting scene. The first completed day visibly adds a planted seed rather than requiring five days for feedback.
 - A one-word streak hold gives a gentle watering effect and a held-day label, but no growth step or additional streak count. Partial practice ineligible for a hold shows ordinary daily progress without a hold reward.
 - Missing a day pauses growth. Existing plants remain: resetting the streak does not erase the garden earned through past practice. Garden size represents total completed days, while the streak represents the current practice chain.
 - Multiple visits, webhook retries, or repeated completions of the same day never award extra growth. A held day upgraded to complete later earns one step. Recompute from canonical daily results after corrections rather than accumulating irreversible client-side rewards.

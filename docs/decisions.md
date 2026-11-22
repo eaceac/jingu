@@ -13,6 +13,7 @@
 - Maintain a vocabulary library and track how often each word is practiced.
 - Provide a lightweight web dashboard and streak mechanism.
 - Make a beautiful game-style garden the dashboard centerpiece, visibly growing with daily practice to encourage returning each day.
+- The site primarily opens to the dashboard. Start with one empty garden box and a simple dreamy oil-painted illustrative background, replacing the original elaborate garden scene.
 - Completing the daily practice goal increases the streak. Practicing one word can preserve an existing streak for one day without increasing its count.
 - Start with system design and a development plan before application implementation.
 
