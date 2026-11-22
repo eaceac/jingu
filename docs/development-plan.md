@@ -87,10 +87,13 @@ Create `apps/web` with an authenticated, responsive progress view, activity cale
 
 Make the garden the visual centerpiece. Review a game-art concept, prepare reusable planting-stage assets, and implement the deterministic five-stage planting progression from completed-day records. Add gentle completion and hold feedback, responsive layout, reduced-motion behavior, and accessible text equivalents. Image generation is an asset-authoring tool only, not part of runtime practice or garden updates.
 
+The latest art direction pairs realistic boxes/soil/plants with an oil-painted background. Implement species-specific growth assets and streak-based box unlocks (proposed: another box every seven days of longest streak), retaining earned boxes after a break. These additions are not yet in the existing `garden-v1` reducer. Define versioned plant-slot placement and capacity before rendering, including behavior when available boxes are full.
+
 Acceptance:
 
 - Dashboard values match the underlying practice events and SMS recap.
 - Every completed local day grants one garden growth step across sessions/languages; holds grant no growth, and missed days preserve already earned plants.
+- Streak thresholds unlock one empty box exactly once; held days do not advance thresholds, and a streak reset never removes earned boxes. Species/slot assignments remain deterministic across refreshes and unlocks.
 - Replayed webhooks, refreshes, multiple devices, held-to-complete upgrades, and corrected daily results produce the same garden from canonical history.
 - A new completed day produces visible growth at every stage, including after the first bed is full; reduced-motion mode preserves all progress information.
 - Two users cannot access each other's vocabulary, sessions, or settings.

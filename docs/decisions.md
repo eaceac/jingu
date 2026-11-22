@@ -14,6 +14,7 @@
 - Provide a lightweight web dashboard and streak mechanism.
 - Make a beautiful game-style garden the dashboard centerpiece, visibly growing with daily practice to encourage returning each day.
 - The site primarily opens to the dashboard. Start with one empty garden box and a simple dreamy oil-painted illustrative background, replacing the original elaborate garden scene.
+- Render garden boxes and plants realistically, contrasting with the oil-painted background. Support different plant varieties and unlock more boxes as streaks lengthen.
 - Completing the daily practice goal increases the streak. Practicing one word can preserve an existing streak for one day without increasing its count.
 - Start with system design and a development plan before application implementation.
 
@@ -42,6 +43,7 @@ These are implementation defaults, not requirements supplied by the user.
 | SRS deployment | Pure shared package inside the backend, no separate service | Keep scheduling and assessment commits transactional; avoid unnecessary network calls |
 | Dashboard | React, responsive, read-focused | Small surface for progress and vocabulary inspection |
 | Garden growth | One permanent growth step per completed daily goal; holds preserve without growth | Proposed reward mapping aligned with daily streak rules; missed days do not destroy earned plants |
+| Garden box unlocks | One starting box plus one per 7 days of longest streak | Proposed thresholds; preserves earned boxes after a streak break |
 | Repository | Private GitHub repository | Appropriate default for a new personal project |
 
 ## Resolve during implementation
