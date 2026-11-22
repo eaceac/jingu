@@ -136,7 +136,12 @@ test('real grading and scheduling persist facts that rebuild the same garden aft
     const restored=progress(facts.rows as DailyInput[],'2026-11-22');
     assert.equal(restored.currentStreak,1);
     assert.equal(restored.completedDays,1);
-    assert.deepEqual(restored.garden,{policyVersion:'garden-v1',growthSteps:1,bloomingPlants:0,activePlant:{slot:0,stage:'seed'}});
+    assert.equal(restored.garden.policyVersion,'garden-v2');
+    assert.equal(restored.garden.growthSteps,1);
+    assert.equal(restored.garden.boxCount,1);
+    assert.equal(restored.garden.activePlant?.stage,'seed');
+    assert.equal(restored.garden.activePlant?.species,'basil');
+    assert.equal(restored.garden.boxes[0].slots[0],restored.garden.activePlant?.id);
     assert.equal(restored.daily[0]?.date,'2026-11-21'); // Receipt day, not later grading day.
     const saved=(await reconnect.query('SELECT due_at,version FROM review_cards WHERE id=$1',['card'])).rows[0];
     assert.equal((saved.due_at as Date).toISOString(),next.dueAt);

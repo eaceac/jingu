@@ -32,3 +32,14 @@ const result = progress(days.map(([date, count]) => ({ date, goal: 5,
 console.log('\nDaily goal → one-word hold → daily goal:');
 for (const day of result.daily) console.log(`  ${day.date}: ${day.count}/${day.goal} — ${day.status}`);
 console.log(`Streak: ${result.currentStreak}; garden growth: ${result.garden.growthSteps} days; plant: ${result.garden.activePlant?.stage}`);
+
+console.log('\nGarden milestones (scripted completed days):');
+for (const count of [0, 1, 5, 7, 11, 14, 21]) {
+  const history = Array.from({ length: count }, (_, i) => {
+    const date = new Date(Date.UTC(2026, 0, i + 1)).toISOString().slice(0, 10);
+    return { date, goal: 1, attempts: [{ assessmentId: `garden:${i}`, senseId: 'ko:water', localDate: date }] };
+  });
+  const garden = progress(history, history.at(-1)?.date ?? '2026-01-01').garden;
+  console.log(`  Day ${count}: ${garden.boxCount} boxes, ${garden.maturePlants} mature plants; next box at streak ${garden.nextBoxAtStreak}`);
+  if (garden.activePlant) console.log(`    Growing ${garden.activePlant.species}: ${garden.activePlant.visualStage} in ${garden.activePlant.boxId}`);
+}

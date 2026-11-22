@@ -6,7 +6,7 @@
 
 Keep the landscape dreamy and oil-painted, but render the boxes, soil, and plants as realistic foreground objects: detailed wood grain, natural soil, believable leaves and soft contact shadows. Start with one empty box. Different plant varieties grow with completed daily practice; longer streaks unlock more boxes. Proposed initial milestones are two boxes at a seven-day streak and three at fourteen days. The bottom panels are future-unlock previews, not already earned rewards or guaranteed plant layouts. Boxes unlock empty; the featured mature plants illustrate possible varieties.
 
-Unlocks are retained after a missed day, consistent with preserving earned garden progress. Holds neither increase plant growth nor advance unlock milestones. The existing engine implements growth stages only; box unlocks and species selection still need implementation.
+Unlocks are retained after a missed day, consistent with preserving earned garden progress. Holds neither increase plant growth nor advance unlock milestones. The `garden-v2` engine now implements box unlocks, species, stable placement, and a permanent collection for mature plants when beds fill. The dashboard rendering and individual plant artwork remain to be built; the image above is a concept, not a working screen.
 
 Generated with the built-in image generation tool, editing revision 2. Final prompt:
 

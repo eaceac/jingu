@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { defaultSettings, timestamp, validateSettings } from '../contracts/index.ts';
-import { createCard, reviewCard, planSession, acceptGrade, progress, localDate, gardenState, type DailyInput, type Opportunity } from './index.ts';
+import { createCard, reviewCard, planSession, acceptGrade, progress, localDate, type DailyInput, type Opportunity } from './index.ts';
 import { koreanStarterPack, spanishFixturePack } from '../languages/index.ts';
 
 const now = '2026-11-22T12:00:00.000Z';
@@ -187,12 +187,6 @@ test('IANA local dates handle midnight and DST without elapsed-day arithmetic', 
   assert.equal(localDate('2026-11-01T08:30:00Z', 'America/Los_Angeles'), localDate('2026-11-01T09:30:00Z', 'America/Los_Angeles'));
   assert.equal(progress([day('2026-10-31', 5), day('2026-11-01', 5)], '2026-11-02').currentStreak, 2);
   assert.throws(() => progress([day('2026-02-30', 5)], '2026-11-22'), /timestamp/);
-});
-
-test('garden progresses past first planting and is reconstructible after corrections', () => {
-  assert.deepEqual(gardenState(12), { policyVersion: 'garden-v1', growthSteps: 12, bloomingPlants: 2, activePlant: { slot: 2, stage: 'sprout' } });
-  assert.equal(gardenState(5).activePlant, null);
-  assert.equal(gardenState(6).activePlant?.stage, 'seed');
 });
 
 test('settings reject invalid inputs instead of silently changing the learning policy', () => {

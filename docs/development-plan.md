@@ -87,7 +87,9 @@ Create `apps/web` with an authenticated, responsive progress view, activity cale
 
 Make the garden the visual centerpiece. Review a game-art concept, prepare reusable planting-stage assets, and implement the deterministic five-stage planting progression from completed-day records. Add gentle completion and hold feedback, responsive layout, reduced-motion behavior, and accessible text equivalents. Image generation is an asset-authoring tool only, not part of runtime practice or garden updates.
 
-The latest art direction pairs realistic boxes/soil/plants with an oil-painted background. Implement species-specific growth assets and streak-based box unlocks (proposed: another box every seven days of longest streak), retaining earned boxes after a break. These additions are not yet in the existing `garden-v1` reducer. Define versioned plant-slot placement and capacity before rendering, including behavior when available boxes are full.
+The latest art direction pairs realistic boxes/soil/plants with an oil-painted background. The `garden-v2` reducer now implements species-specific stage metadata, another box every seven days of longest streak, four slots per box, stable plant placement, and a permanent collection when beds fill. Held days earn nothing and missed days retain earned rewards. The dashboard and species-specific visual assets remain unimplemented. `npm run demo` now includes garden milestone examples.
+
+Validation: all 45 tests pass, including 11 PostgreSQL integration tests. Garden tests cover empty state, five-stage species growth, 7/14/21-day unlocks, stable placement, holds, breaks, repeated milestones, full-bed collection, duplicate replay, and corrected history.
 
 Acceptance:
 

@@ -43,6 +43,8 @@ The initial daily new-word allowance is five, matching the default daily goal. V
 
 The dashboard centers on an illustrated game-style garden that grows with each completed practice day. Held days preserve it without adding growth, and missed days never erase earned plants.
 
+Implemented garden progression (`garden-v2`) starts with one empty four-slot box. Every seven days of longest streak unlocks another box; five completed practice days mature a plant. Varieties cycle through basil, lavender, strawberry, and echinacea. When all boxes are full, the oldest mature plant moves into a permanent collection to make room. The engine reconstructs rewards from saved practice history, preserving earned boxes after a streak break. Run `npm run demo` for milestone examples. Garden artwork and dashboard rendering are still pending.
+
 Completing the daily goal increases your streak. On a busy day, practicing one word can hold an existing streak for a day without adding to its count; complete the full goal the next day to keep it going.
 
 ## Proposed implementation

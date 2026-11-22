@@ -1,4 +1,6 @@
 import { timestamp } from '../contracts/index.ts';
+import { gardenState, type GardenCompletion } from './garden.ts';
+export { gardenState } from './garden.ts';
 
 export function localDate(instant: string, timezone: string): string {
   const date = new Date(timestamp(instant));
@@ -34,6 +36,7 @@ export function progress(days: readonly DailyInput[], today: string) {
   const seenAssessments = new Map<string, PracticeAttempt>();
   const daily: { date: string; goal: number; count: number; status: DailyStatus }[] = [];
   let streak = 0, longest = 0, completedDays = 0;
+  const gardenCompletions: GardenCompletion[] = [];
   let previousDay: number | undefined;
   let previousStatus: DailyStatus | undefined;
   let todayState: { date: string; goal: number; count: number; status: DailyStatus } | undefined;
@@ -58,6 +61,7 @@ export function progress(days: readonly DailyInput[], today: string) {
     let status: DailyStatus;
     if (senses.size >= day.goal) {
       status = 'complete'; streak++; completedDays++; longest = Math.max(longest, streak);
+      gardenCompletions.push({ date: day.date, longestStreak: longest });
     } else if (senses.size > 0 && canHold) {
       status = 'held';
     } else {
@@ -77,15 +81,6 @@ export function progress(days: readonly DailyInput[], today: string) {
   return {
     policyVersion: 'daily-hold-v1', currentStreak: streak, longestStreak: longest,
     completedDays, today: todayState ?? null, holdAvailableToday, daily,
-    garden: gardenState(completedDays),
+    garden: gardenState(gardenCompletions),
   };
-}
-
-export function gardenState(completedDays: number) {
-  if (!Number.isSafeInteger(completedDays) || completedDays < 0) throw new Error('Invalid completed-day count');
-  const stages = ['seed', 'sprout', 'leaves', 'bud', 'bloom'] as const;
-  const blooms = Math.floor(completedDays / 5);
-  const remainder = completedDays % 5;
-  return { policyVersion: 'garden-v1', growthSteps: completedDays, bloomingPlants: blooms,
-    activePlant: remainder ? { slot: blooms, stage: stages[remainder - 1] } : null };
 }
