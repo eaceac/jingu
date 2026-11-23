@@ -1,5 +1,12 @@
 # Activate Jingu for daily texting
 
+## Trial account limitation
+
+The current Twilio 30-day trial provides 100 SMS units and restricts outbound message bodies to predefined templates. The account console verified this restriction on November 22, 2026. This can test basic SMS delivery and receiving, but cannot run Jingu's custom Korean questions or grading responses. The existing Jingu adapter needs an account that permits custom SMS content. Do not upgrade or enable billing automatically; the user has only authorized trying the free trial.
+
+Reference: [Twilio free trial restrictions](https://www.twilio.com/docs/usage/tutorials/how-to-use-your-free-trial-account).
+
+
 The personal-alpha SMS application is implemented, but is not yet deployed or connected to a real phone number. Live AI calls and carrier delivery have not been tested with account credentials. The current release supports one configured learner, Korean/English, an always-running Node service, and PostgreSQL. The garden/progress API is available; the visual dashboard is not yet built.
 
 ## What the running app does
