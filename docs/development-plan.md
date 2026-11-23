@@ -2,6 +2,8 @@
 
 Build one complete practice loop, then connect external services. Milestones below are ordered; each has an observable acceptance gate.
 
+Latest implementation update: the persistent session service, OpenAI adapter, Twilio webhook/delivery adapter, SMS settings commands, opt-in/out, and local-time reminder loop are implemented. `Dockerfile` and Railway configuration support deployment. Automated tests use fake/mocked providers plus real PostgreSQL and a running HTTP server; live AI quality, carrier SMS, persistent hosting, and the phone smoke test remain blocked on account setup. See [daily-use activation](daily-use.md). Earlier dated updates below describe the previous milestone state. The visual dashboard remains unimplemented.
+
 Implementation update (2026-11-22): the milestone 1 code foundation is implemented, including deterministic selection/scheduling, grading-policy validation, settings snapshots, streak/garden reducers, a 50-sense draft Korean pack, SQL migrations, and transactional review commits. Unit and real-PostgreSQL integration tests cover these modules. The vocabulary still needs pedagogical review. `npm run demo` exercises the foundation with fixed fixtures; it is not yet the persistent conversational simulator required by milestone 2. Live AI/SMS, dashboard UI, and reminders remain unimplemented.
 
 All 35 tests and TypeScript checks passed locally, including 11 PostgreSQL integration tests. CI configuration is provided at `docs/ci/check.yml`; activation is pending a GitHub credential with workflow permission. The current credential cannot push `.github/workflows/` files.

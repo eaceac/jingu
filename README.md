@@ -6,7 +6,9 @@ Daily language practice through text conversations, with deterministic spaced re
 
 ## Project status
 
-Implementation started: deterministic scheduling and session planning, grading-policy validation, streak holds and garden projections, a 50-sense draft Korean pack, and transactional PostgreSQL persistence are implemented with tests. A scripted foundation demo is runnable locally. Live conversation, SMS, dashboard UI, and reminders are not implemented yet. No external messaging service or AI provider has been provisioned.
+Personal-alpha text application implemented: deterministic SRS, persistent sessions/settings/progress, OpenAI question generation and semantic grading, signed Twilio webhooks, outbound delivery, opt-out, daily reminders, streaks, and garden progression. Startup imports the 50-sense Korean draft pack into PostgreSQL. Offline flows are tested; live credentials, an SMS number, and hosting are not configured yet. No real AI call or carrier SMS has been verified. The visual dashboard remains unbuilt.
+
+**[Activate daily texting](docs/daily-use.md)** covers deployment, required credentials, phone setup, commands, and the live smoke test. `npm run dev` starts the actual API/worker using a local `.env`; `npm start` uses host environment variables. No fake grading is allowed in live SMS mode.
 
 - [System design](docs/system-design.md): user flow, architecture, data model, scheduling, and reliability.
 - [Development plan](docs/development-plan.md): ordered milestones and acceptance criteria.

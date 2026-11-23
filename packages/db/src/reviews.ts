@@ -1,4 +1,4 @@
-import type { Pool } from 'pg';
+import type { Pool, PoolClient } from 'pg';
 
 export interface PersistedCardState {
   stage: number;
@@ -27,11 +27,8 @@ export interface AcceptedReview {
   dailyGoal: number;
 }
 
-/** Accept only a policy-validated grade and pure scheduler result from trusted application code. */
-export async function commitAcceptedReview(pool: Pool, input: AcceptedReview): Promise<{ duplicate: boolean; assessmentId: string }> {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
+/** Caller owns BEGIN/COMMIT; keeps assessment, reply intent, and session advancement atomic. */
+export async function commitReviewInTransaction(client: PoolClient, input: AcceptedReview): Promise<{ duplicate: boolean; assessmentId: string }> {
     // Serialize progress for one learner, including distinct cards completing concurrently.
     const owner = await client.query('SELECT id FROM users WHERE id=$1 FOR UPDATE', [input.userId]);
     if (!owner.rowCount) throw new Error('Unknown learner');
@@ -44,7 +41,6 @@ export async function commitAcceptedReview(pool: Pool, input: AcceptedReview): P
     if (!row) throw new Error('Unknown opportunity');
     const existing = await client.query('SELECT id FROM assessments WHERE opportunity_id=$1', [input.opportunityId]);
     if (existing.rowCount) {
-      await client.query('COMMIT');
       return { duplicate: true, assessmentId: existing.rows[0].id as string };
     }
     if (row.status !== 'open' || row.version !== input.expectedCardVersion || row.expected_card_version !== row.version) {
@@ -88,12 +84,19 @@ export async function commitAcceptedReview(pool: Pool, input: AcceptedReview): P
        ON CONFLICT (user_id,local_date) DO UPDATE SET sense_ids=
        ARRAY(SELECT DISTINCT unnest(daily_progress.sense_ids || EXCLUDED.sense_ids) ORDER BY 1)`,
       [input.userId,incoming.local_date,input.practiceTimezone,input.dailyGoal,row.sense_id]);
-    await client.query('COMMIT');
     return { duplicate: false, assessmentId: input.assessmentId };
+}
+
+/** Accept only a policy-validated grade and pure scheduler result from trusted application code. */
+export async function commitAcceptedReview(pool: Pool, input: AcceptedReview) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await commitReviewInTransaction(client, input);
+    await client.query('COMMIT');
+    return result;
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;
-  } finally {
-    client.release();
-  }
+  } finally { client.release(); }
 }

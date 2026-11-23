@@ -3,14 +3,21 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22.18.0" },
+  "engines": {
+    "node": ">=22.18.0"
+  },
   "scripts": {
-    "test": "node --import tsx --test packages/learning/*.test.ts packages/languages/*.test.ts packages/db/test/*.test.ts",
+    "test": "node --import tsx --test packages/learning/*.test.ts packages/languages/*.test.ts packages/db/test/*.test.ts packages/ai/*.test.ts apps/api/*.test.ts",
     "demo": "node --import tsx apps/simulator/demo.ts",
     "typecheck": "tsc --noEmit",
-    "check": "npm run typecheck && npm test"
+    "check": "npm run typecheck && npm test",
+    "start": "node --import tsx apps/api/server.ts",
+    "dev": "node --env-file=.env --import tsx apps/api/server.ts"
   },
-  "dependencies": { "pg": "^8.16.0" },
+  "dependencies": {
+    "pg": "^8.16.0",
+    "twilio": "^6.3.1"
+  },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/pg": "^8.15.0",
