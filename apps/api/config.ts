@@ -12,10 +12,14 @@ export function config(env: NodeJS.ProcessEnv = process.env) {
   const positive = (key: string, fallback: number) => {
     const n = Number(env[key] ?? fallback); if (!Number.isInteger(n) || n < 1 || n > (key === 'PORT' ? 65535 : 10000)) throw new Error(`Invalid ${key}`); return n;
   };
+  const smsReceiveMode = env.SMS_RECEIVE_MODE ?? 'webhook';
+  if (!['webhook', 'poll'].includes(smsReceiveMode)) throw new Error('Invalid SMS_RECEIVE_MODE');
+  const bindHost = env.BIND_HOST ?? (transport === 'bluebubbles' || smsReceiveMode === 'poll' ? '127.0.0.1' : '0.0.0.0');
+  if (!['127.0.0.1', '0.0.0.0'].includes(bindHost)) throw new Error('Invalid BIND_HOST');
   const publicUrl = env.PUBLIC_URL?.replace(/\/$/, '') ?? '';
   const phone = env.LEARNER_PHONE ?? '';
   const from = env.TWILIO_FROM_NUMBER ?? '';
-  if (transport === 'twilio' && (!/^https:\/\/[^/?#]+$/.test(publicUrl) || !/^\+[1-9]\d{7,14}$/.test(phone) || !/^\+[1-9]\d{7,14}$/.test(from))) {
+  if (transport === 'twilio' && ((smsReceiveMode === 'webhook' && !/^https:\/\/[^/?#]+$/.test(publicUrl)) || !/^\+[1-9]\d{7,14}$/.test(phone) || !/^\+[1-9]\d{7,14}$/.test(from))) {
     throw new Error('Live SMS requires PUBLIC_URL HTTPS origin and E.164 learner/sender numbers');
   }
   let bluebubbles: { url: string; password: string; learners: BlueBubblesLearner[] } | undefined;
@@ -34,7 +38,7 @@ export function config(env: NodeJS.ProcessEnv = process.env) {
     }
     bluebubbles = { url: url.origin, password: required('BLUEBUBBLES_PASSWORD'), learners };
   }
-  return { bluebubbles, maxGlobalAI: positive('MAX_GLOBAL_AI_CALLS_PER_DAY', 300), databaseUrl: required('DATABASE_URL'), transport, aiMode, timezone, token, publicUrl, phone, from,
+  return { smsReceiveMode, bindHost, bluebubbles, maxGlobalAI: positive('MAX_GLOBAL_AI_CALLS_PER_DAY', 300), databaseUrl: required('DATABASE_URL'), transport, aiMode, timezone, token, publicUrl, phone, from,
     accountSid: transport === 'twilio' ? required('TWILIO_ACCOUNT_SID') : '',
     authToken: transport === 'twilio' ? required('TWILIO_AUTH_TOKEN') : '',
     apiKey: aiMode === 'openai' ? required('OPENAI_API_KEY') : '',
@@ -42,4 +46,4 @@ export function config(env: NodeJS.ProcessEnv = process.env) {
     port: positive('PORT', 3000), maxAI: positive('MAX_AI_CALLS_PER_DAY', 100), maxSMS: positive('MAX_SMS_PER_DAY', 60),
   };
 }
-export type Config = Omit<ReturnType<typeof config>, 'bluebubbles' | 'maxGlobalAI'> & { bluebubbles?: ReturnType<typeof config>['bluebubbles']; maxGlobalAI?: number };
+export type Config = Omit<ReturnType<typeof config>, 'bluebubbles' | 'maxGlobalAI' | 'smsReceiveMode' | 'bindHost'> & { bluebubbles?: ReturnType<typeof config>['bluebubbles']; maxGlobalAI?: number; smsReceiveMode?: string; bindHost?: string };

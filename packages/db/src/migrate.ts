@@ -8,7 +8,7 @@ export async function migrate(pool: Pool): Promise<void> {
     await client.query('BEGIN');
     await client.query("SELECT pg_advisory_xact_lock(191887, 1)");
     await client.query('CREATE TABLE IF NOT EXISTS schema_migrations (version integer PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())');
-    for (const [version, name] of [[1, '001_initial.sql'], [2, '002_daily_runtime.sql'], [3, '003_bluebubbles.sql']] as const) {
+    for (const [version, name] of [[1, '001_initial.sql'], [2, '002_daily_runtime.sql'], [3, '003_bluebubbles.sql'], [4, '004_sms_polling.sql']] as const) {
       const applied = await client.query('SELECT version FROM schema_migrations WHERE version = $1', [version]);
       if (!applied.rowCount) {
         const sql = await readFile(new URL(`../migrations/${name}`, import.meta.url), 'utf8');

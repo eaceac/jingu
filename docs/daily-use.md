@@ -1,5 +1,17 @@
 # Activate Jingu for daily texting
 
+## Run SMS on this Mac
+
+The local Twilio path uses `SMS_RECEIVE_MODE=poll`, fetching only messages between the configured learner and the owned Twilio number every five seconds. The Jingu HTTP server binds to loopback, so no tunnel, public URL, or web hosting is needed for this personal alpha. Existing signed webhooks remain available for hosted deployments.
+
+1. Upgrade Twilio, purchase an SMS-capable number, and complete the required US sender registration. The preset trial sender is not necessarily a number you own. Account funding alone does not establish SMS readiness.
+2. Run `python3 scripts/configure-twilio.py` to enter the Twilio Auth Token and OpenAI API key privately, confirm phone numbers, and switch `.env` to polling mode. It defaults to `gpt-4.1-mini`. OpenAI API billing is separate from ChatGPT.
+3. Run `node --env-file=.env --import tsx scripts/check-providers.ts` to check authentication and owned numbers. This does not send messages or establish carrier approval.
+4. For the purchased number, clear any old incoming-message demo/auto-reply webhook in Twilio; Jingu consumes messages through the REST API. Do not attach a second responder. In this mode no Jingu status callback is set; delivery status is polled.
+5. Run `./scripts/start-mac.sh`. It starts the existing dedicated PostgreSQL cluster and Jingu, preventing idle sleep while running. Keep the Mac powered and connected. Text `START`, then `PRACTICE` to your owned number and verify both delivery and saved progress.
+
+The first start ignores older messages. Subsequent polling checks the latest 30 minutes; durable message IDs prevent duplicate grading across restarts. Polling errors suspend processing/sending until a successful poll, so an unobserved STOP does not permit continued delivery during a provider outage. Existing limits, opt-out handling, SRS, and garden persistence apply. Outgoing provider acceptance is distinct from handset delivery; failed delivery is recorded. SMS currently admits one configured learner; BlueBubbles' multi-user allowlist is separate.
+
 ## Trial account limitation
 
 The current Twilio 30-day trial provides 100 SMS units and restricts outbound message bodies to predefined templates. The account console verified this restriction on November 22, 2026. This can test basic SMS delivery and receiving, but cannot run Jingu's custom Korean questions or grading responses. The existing Jingu adapter needs an account that permits custom SMS content. Do not upgrade or enable billing automatically; the user has only authorized trying the free trial.

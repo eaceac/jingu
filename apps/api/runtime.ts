@@ -53,7 +53,7 @@ export class Runtime {
       await lock.query("UPDATE outbox SET status='sending',attempts=attempts+1 WHERE id=$1", [item.id]);
       try {
         const result = this.deliver ? await this.deliver(item.payload.text) : this.sending ? await this.sending.messages.create({ to: this.cfg.phone, from: this.cfg.from, body: item.payload.text,
-          statusCallback: `${this.cfg.publicUrl}/webhooks/sms/status` }) : { sid: `console:${item.id}` };
+          ...(this.cfg.smsReceiveMode === 'poll' ? {} : { statusCallback: `${this.cfg.publicUrl}/webhooks/sms/status` }) }) : { sid: `console:${item.id}` };
         await lock.query("UPDATE outbox SET status='sent',provider_message_id=$2 WHERE id=$1", [item.id, result.sid]);
         if (this.cfg.transport === 'console') console.log(`[simulator] ${item.payload.text}`);
       } catch (error) {

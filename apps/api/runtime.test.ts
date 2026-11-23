@@ -26,3 +26,12 @@ test('official Twilio validator rejects altered body and wrong public URL', () =
   assert.ok(!twilio.validateRequest('test-token', signature, url, { ...params, Body: 'stop' }));
   assert.ok(!twilio.validateRequest('test-token', signature, 'https://wrong.example/', params));
 });
+
+test('Mac polling uses loopback and does not need a public webhook URL', () => {
+  const cfg = config({ DATABASE_URL: 'postgres://localhost/test', ADMIN_TOKEN: 'x'.repeat(32), TRANSPORT: 'twilio', AI_MODE: 'openai',
+    SMS_RECEIVE_MODE: 'poll', LEARNER_PHONE: '+15551234567', TWILIO_FROM_NUMBER: '+15557654321',
+    TWILIO_ACCOUNT_SID: 'ACtest', TWILIO_AUTH_TOKEN: 'test', OPENAI_API_KEY: 'test', OPENAI_MODEL: 'gpt-4.1-mini' });
+  assert.equal(cfg.bindHost, '127.0.0.1');
+  assert.equal(cfg.publicUrl, '');
+  assert.equal(cfg.smsReceiveMode, 'poll');
+});

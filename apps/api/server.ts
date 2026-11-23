@@ -7,6 +7,7 @@ import { migrate } from '../../packages/db/src/migrate.ts';
 import { FakeTutor, OpenAITutor } from '../../packages/ai/index.ts';
 import { PracticeService, readProgress, seed } from './service.ts';
 import { BlueBubbles, pollBlueBubbles } from './bluebubbles.ts';
+import { SMSPoller } from './sms-polling.ts';
 import { Runtime } from './runtime.ts';
 
 export async function body(req: IncomingMessage) {
@@ -25,6 +26,9 @@ if (cfg.bluebubbles) {
 const tutor = cfg.aiMode === 'openai' ? new OpenAITutor(cfg.apiKey, cfg.model) : new FakeTutor();
 const service = new PracticeService(pool, tutor, cfg);
 const runtime = new Runtime(pool, service, cfg);
+const smsPoller = cfg.transport === 'twilio' && cfg.smsReceiveMode === 'poll' ? new SMSPoller(pool, cfg, service) : undefined;
+let nextSMSPoll = 0;
+let smsHealthy = false;
 const bb = cfg.bluebubbles ? new BlueBubbles(cfg.bluebubbles.url, cfg.bluebubbles.password) : undefined;
 const learners = cfg.bluebubbles?.learners.map(learner => {
   const practice = new PracticeService(pool, tutor, cfg, learner.id);
@@ -36,7 +40,7 @@ const server = createServer(async (req, res) => {
   const send = (code: number, value: unknown) => { res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(value)); };
   try {
     if (path === '/health' && req.method === 'GET') { await pool.query('SELECT 1'); return send(200, { ok: true }); }
-    if (path.startsWith('/webhooks/sms/') && req.method === 'POST' && cfg.transport === 'twilio') {
+    if (path.startsWith('/webhooks/sms/') && req.method === 'POST' && cfg.transport === 'twilio' && cfg.smsReceiveMode === 'webhook') {
       if (path !== '/webhooks/sms/inbound' && path !== '/webhooks/sms/status') return send(404, { error: 'Not found' });
       if (!req.headers['content-type']?.startsWith('application/x-www-form-urlencoded')) return send(415, { error: 'Expected form data' });
       const params = Object.fromEntries(new URLSearchParams(await body(req)));
@@ -69,7 +73,7 @@ const server = createServer(async (req, res) => {
 });
 server.requestTimeout = 10_000;
 server.headersTimeout = 10_000;
-server.listen(cfg.port, cfg.transport === 'bluebubbles' ? '127.0.0.1' : '0.0.0.0', () => console.log(`Jingu ready on port ${cfg.port}; transport=${cfg.transport}; AI=${cfg.aiMode}`));
+server.listen(cfg.port, cfg.bindHost, () => console.log(`Jingu ready on port ${cfg.port}; transport=${cfg.transport}; AI=${cfg.aiMode}`));
 let stopping = false;
 async function loop() {
   while (!stopping) {
@@ -81,7 +85,16 @@ async function loop() {
             await learnerRuntime.tick();
           } catch { console.error(`BlueBubbles learner tick failed: ${learner.id}; check local server and permissions`); }
         }
-      } else await runtime.tick();
+      } else {
+        if (smsPoller && Date.now() >= nextSMSPoll) {
+          nextSMSPoll = Date.now() + 5000;
+          // Do not send/process new turns if polling failed: an unseen STOP may be waiting.
+          smsHealthy = false;
+          await smsPoller.poll();
+          smsHealthy = true;
+        }
+        if (!smsPoller || smsHealthy) await runtime.tick();
+      }
     } catch { console.error('Worker tick failed; pending work remains durable.'); }
     await new Promise(resolve => setTimeout(resolve, 1000));
   }

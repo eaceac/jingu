@@ -7,6 +7,7 @@ import { koreanStarterPack } from '../../packages/languages/index.ts';
 import { config } from './config.ts';
 import { PracticeService, seed, readProgress, USER } from './service.ts';
 import { BlueBubbles, pollBlueBubbles } from './bluebubbles.ts';
+import { SMSPoller, type PollMessage } from './sms-polling.ts';
 import { Runtime } from './runtime.ts';
 const url = process.env.TEST_DATABASE_URL;
 const schema = `jingu_flow_${process.pid}_${Date.now()}`;
@@ -160,4 +161,29 @@ test('polling starts without importing history and deduplicates overlapping fetc
   await pollBlueBubbles(pool!, api, learner, new PracticeService(pool!, new FakeTutor(), cfg), clock + 500);
   assert.equal((await pool!.query('SELECT count(*)::int AS n FROM messages')).rows[0].n, 1);
   assert.equal((await pool!.query('SELECT count(*)::int AS n FROM outbox')).rows[0].n, 1);
+});
+
+
+test('SMS polling ignores old/private messages, deduplicates restart, honors STOP, and records delivery failures', skip, async () => {
+  const smsCfg = { ...cfg, smsReceiveMode: 'poll', accountSid: 'ACtest', phone: '+15551234567', from: '+15557654321' };
+  let inbox: PollMessage[] = [];
+  const sample = (sid: string, body: string, extra: Partial<PollMessage> = {}): PollMessage => ({ sid, body, accountSid: smsCfg.accountSid,
+    from: smsCfg.phone, to: smsCfg.from, dateCreated: new Date(clock), direction: 'inbound', status: 'received', errorCode: null, ...extra });
+  const reader = { list: async () => inbox, fetch: async (sid: string) => sample(sid, '', { from: smsCfg.from, to: smsCfg.phone, status: 'undelivered', errorCode: 30034 }) };
+  let poller = new SMSPoller(pool!, smsCfg, svc, reader);
+  await poller.poll(new Date(clock));
+  clock += 2000;
+  inbox = [sample('old', 'start', { dateCreated: new Date(clock - 60_000) }), sample('other', 'start', { from: '+15550000000' }),
+    sample('account', 'start', { accountSid: 'ACother' }), sample('outbound', 'start', { direction: 'outbound-api' }), sample('start', 'START')];
+  await poller.poll(new Date(clock));
+  poller = new SMSPoller(pool!, smsCfg, svc, reader);
+  await poller.poll(new Date(clock));
+  assert.equal((await pool!.query('SELECT count(*)::int AS n FROM messages')).rows[0].n, 1);
+  await pool!.query("UPDATE outbox SET status='sent',provider_message_id='SMfake'");
+  await poller.poll(new Date(clock));
+  assert.equal((await pool!.query("SELECT status,last_error FROM outbox WHERE provider_message_id='SMfake'")).rows[0].last_error, 'Delivery failed: 30034');
+  inbox = [sample('stop', 'STOP')];
+  await poller.poll(new Date(clock));
+  assert.equal((await pool!.query('SELECT sms_opted_in FROM users WHERE id=$1', [USER])).rows[0].sms_opted_in, false);
+  await assert.rejects(() => new SMSPoller(pool!, { ...smsCfg, phone: '+15558888888' }, svc, reader).poll(new Date(clock)), /identity changed/);
 });
