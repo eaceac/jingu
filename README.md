@@ -27,3 +27,5 @@ See [design](docs/system-design.md), [development plan](docs/development-plan.md
 ## Private data
 
 Keep `.env`, credentials, database files, dumps, personal transcripts, and login notes out of Git and container build contexts. Only `.env.example` contains placeholder settings. AI keys stay server-side. The website password protects both garden and practice history; the separate admin token is not sent to the browser. Live AI requires available API credits.
+
+Commits are guarded by the versioned `.githooks/pre-commit` hook and Gitleaks rules. For a new checkout, install Gitleaks and run `git config core.hooksPath .githooks`. CI also scans the complete reachable history. Repository author metadata uses a generic contributor identity.
