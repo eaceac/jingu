@@ -37,7 +37,7 @@ These are implementation defaults, not requirements supplied by the user.
 | Streak scope | Overall learner streak plus per-language activity | Switching languages should still support the daily habit |
 | One-day streak hold | Automatically preserve an existing streak on a partial-practice day; no consecutive holds | Proposed interpretation of a one-day extension; a full-goal day restores eligibility |
 | Scheduler | Explicit, versioned interval ladder v1 | Transparent, deterministic, easy to test; no efficacy claim |
-| Messaging | Twilio SMS behind an adapter | Documented inbound webhooks and outbound messaging |
+| Messaging | Local BlueBubbles iMessage adapter; optional Twilio SMS | User chose Mac hosting and selected friends; mandatory practice prefix, direct-chat allowlist, separate learner state |
 | AI | Provider adapter with structured, validated output | Keep scheduling independent of a model or provider |
 | Backend | TypeScript API and worker; PostgreSQL | One language across app and domain code; durable transactions |
 | SRS deployment | Pure shared package inside the backend, no separate service | Keep scheduling and assessment commits transactional; avoid unnecessary network calls |
@@ -57,4 +57,8 @@ These are implementation defaults, not requirements supplied by the user.
 
 ## Deferred
 
-Native iMessage, voice/audio, speech assessment, social leaderboards, banked or purchased streak freezes, billing, adaptive scheduler optimization, and integration with an existing language app are outside the initial MVP. The one-word, one-day streak hold is included. Jingu is a standalone practice tool; it does not automate completion of another app's lessons.
+Official native iMessage app, voice/audio, speech assessment, social leaderboards, banked or purchased streak freezes, billing, adaptive scheduler optimization, and integration with an existing language app are outside the initial MVP. The one-word, one-day streak hold is included. Jingu is a standalone practice tool; it does not automate completion of another app's lessons.
+
+## Local iMessage alpha update
+
+BlueBubbles on the owner’s Mac is the chosen messaging transport. Selected friends share the owner’s OpenAI project key, kept server-side. Per-user state and budgets are isolated; a shared daily AI-call cap bounds combined usage. Local polling uses basic AppleScript sending with SIP enabled. See [activation and privacy details](bluebubbles.md).

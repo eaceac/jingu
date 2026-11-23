@@ -2,9 +2,11 @@
 
 Daily language practice through text conversations, with deterministic spaced repetition and a lightweight progress dashboard.
 
-**Starting point:** Korean over SMS. Multiple languages are a core data-model requirement. AI asks conversational questions about application-selected words and grades meaning, including spelling variation and allowed transliterations. Deterministic application code selects every tested word and owns vocabulary records, review schedules, practice counts, and streaks. Users configure session size, translation direction (forward, reverse, or mixed), and transliteration acceptance.
+**Starting point:** Korean over iMessage through a locally hosted BlueBubbles server. Twilio SMS remains an optional adapter. Multiple languages are a core data-model requirement. AI asks conversational questions about application-selected words and grades meaning, including spelling variation and allowed transliterations. Deterministic application code selects every tested word and owns vocabulary records, review schedules, practice counts, and streaks. Users configure session size, translation direction (forward, reverse, or mixed), and transliteration acceptance.
 
 ## Project status
+
+**[Set up BlueBubbles on this Mac](docs/bluebubbles.md)** — current chosen transport. Invite-only friends have independent practice state and share the owner’s server-side AI key, with per-person and global call limits. The adapter is tested; macOS permissions, credentials, approved chat identities, and live verification are pending.
 
 Personal-alpha text application implemented: deterministic SRS, persistent sessions/settings/progress, OpenAI question generation and semantic grading, signed Twilio webhooks, outbound delivery, opt-out, daily reminders, streaks, and garden progression. Startup imports the 50-sense Korean draft pack into PostgreSQL. Offline flows are tested; live credentials, an SMS number, and hosting are not configured yet. No real AI call or carrier SMS has been verified. The visual dashboard remains unbuilt.
 

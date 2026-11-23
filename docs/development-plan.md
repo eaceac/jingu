@@ -1,5 +1,8 @@
 # Development plan
 
+> Current transport update: the invite-only alpha uses BlueBubbles on the owner’s Mac, with separate learner state and a shared server-side OpenAI key. See [local activation plan](bluebubbles.md). Twilio sections below describe the optional SMS path.
+
+
 Build one complete practice loop, then connect external services. Milestones below are ordered; each has an observable acceptance gate.
 
 Latest implementation update: the persistent session service, OpenAI adapter, Twilio webhook/delivery adapter, SMS settings commands, opt-in/out, and local-time reminder loop are implemented. `Dockerfile` and Railway configuration support deployment. Automated tests use fake/mocked providers plus real PostgreSQL and a running HTTP server; live AI quality, carrier SMS, persistent hosting, and the phone smoke test remain blocked on account setup. See [daily-use activation](daily-use.md). Earlier dated updates below describe the previous milestone state. The visual dashboard remains unimplemented.

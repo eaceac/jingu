@@ -1,5 +1,8 @@
 # Jingu system design
 
+> Current transport update: the invite-only alpha uses BlueBubbles on the owner’s Mac, with separate learner state and a shared server-side OpenAI key. See [local activation plan](bluebubbles.md). Twilio sections below describe the optional SMS path.
+
+
 Status: proposed implementation design. Confirmed scope and provisional defaults are recorded in [decisions.md](decisions.md).
 
 ## Product experience

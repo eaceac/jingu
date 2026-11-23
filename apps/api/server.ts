@@ -6,6 +6,7 @@ import { config } from './config.ts';
 import { migrate } from '../../packages/db/src/migrate.ts';
 import { FakeTutor, OpenAITutor } from '../../packages/ai/index.ts';
 import { PracticeService, readProgress, seed } from './service.ts';
+import { BlueBubbles, pollBlueBubbles } from './bluebubbles.ts';
 import { Runtime } from './runtime.ts';
 
 export async function body(req: IncomingMessage) {
@@ -18,10 +19,17 @@ export async function body(req: IncomingMessage) {
 const cfg = config();
 const pool = new Pool({ connectionString: cfg.databaseUrl, max: 10, connectionTimeoutMillis: 5000 });
 await migrate(pool);
-await seed(pool, cfg.timezone);
+if (cfg.bluebubbles) {
+  for (const learner of cfg.bluebubbles.learners) await seed(pool, learner.timezone ?? cfg.timezone, learner.id);
+} else await seed(pool, cfg.timezone);
 const tutor = cfg.aiMode === 'openai' ? new OpenAITutor(cfg.apiKey, cfg.model) : new FakeTutor();
 const service = new PracticeService(pool, tutor, cfg);
 const runtime = new Runtime(pool, service, cfg);
+const bb = cfg.bluebubbles ? new BlueBubbles(cfg.bluebubbles.url, cfg.bluebubbles.password) : undefined;
+const learners = cfg.bluebubbles?.learners.map(learner => {
+  const practice = new PracticeService(pool, tutor, cfg, learner.id);
+  return { learner, practice, runtime: new Runtime(pool, practice, cfg, text => bb!.send(learner.chatGuid, text)) };
+});
 const server = createServer(async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   const path = req.url ?? '/';
@@ -44,7 +52,7 @@ const server = createServer(async (req, res) => {
     const auth = Buffer.from(req.headers.authorization ?? '');
     const expected = Buffer.from(`Bearer ${cfg.token}`);
     if (auth.length !== expected.length || !timingSafeEqual(auth, expected)) return send(401, { error: 'Unauthorized' });
-    if (path === '/api/progress' && req.method === 'GET') return send(200, await readProgress(pool, new Date().toISOString()));
+    if (path === '/api/progress' && req.method === 'GET') return send(200, await readProgress(pool, new Date().toISOString(), cfg.bluebubbles?.learners[0].id));
     if (path === '/api/operations' && req.method === 'GET') {
       const pending = await pool.query('SELECT processing_status,count(*)::int FROM messages GROUP BY processing_status');
       const delivery = await pool.query('SELECT status,count(*)::int FROM outbox GROUP BY status');
@@ -61,11 +69,20 @@ const server = createServer(async (req, res) => {
 });
 server.requestTimeout = 10_000;
 server.headersTimeout = 10_000;
-server.listen(cfg.port, '0.0.0.0', () => console.log(`Jingu ready on port ${cfg.port}; transport=${cfg.transport}; AI=${cfg.aiMode}`));
+server.listen(cfg.port, cfg.transport === 'bluebubbles' ? '127.0.0.1' : '0.0.0.0', () => console.log(`Jingu ready on port ${cfg.port}; transport=${cfg.transport}; AI=${cfg.aiMode}`));
 let stopping = false;
 async function loop() {
   while (!stopping) {
-    try { await runtime.tick(); } catch { console.error('Worker tick failed; pending work remains durable.'); }
+    try {
+      if (learners) {
+        for (const { learner, practice, runtime: learnerRuntime } of learners) {
+          try {
+            await pollBlueBubbles(pool, bb!, learner, practice);
+            await learnerRuntime.tick();
+          } catch { console.error(`BlueBubbles learner tick failed: ${learner.id}; check local server and permissions`); }
+        }
+      } else await runtime.tick();
+    } catch { console.error('Worker tick failed; pending work remains durable.'); }
     await new Promise(resolve => setTimeout(resolve, 1000));
   }
 }
