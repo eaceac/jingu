@@ -9,7 +9,7 @@ const cards = koreanStarterPack.senses.flatMap(sense => [
 ]);
 const plan = planSession({ cards, settings: { ...defaultSettings, directionMode: 'mixed' }, now,
   introducedSenseIds: [], introducedToday: [] });
-console.log('Jingu foundation demo — fixed fixtures, no AI calls, no SMS, no database writes.\n');
+console.log('Jingu foundation demo — fixed fixtures, no AI calls, no database writes.\n');
 console.log('Deterministic mixed-direction session:');
 for (const card of plan.cards) {
   const sense = koreanStarterPack.senses.find(s => s.id === card.senseId)!;

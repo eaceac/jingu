@@ -1,60 +1,29 @@
 # Jingu
 
-Daily language practice through text conversations, with deterministic spaced repetition and a lightweight progress dashboard.
+Personal Korean vocabulary practice through a local password-protected website. A deterministic spaced-repetition scheduler selects vocabulary; AI writes questions and grades meaning, including permitted spelling and transliteration variations. Daily practice grows a garden.
 
-**Starting point:** Korean over Twilio SMS, running locally on this Mac. BlueBubbles remains an optional adapter. Multiple languages are a core data-model requirement. AI asks conversational questions about application-selected words and grades meaning, including spelling variation and allowed transliterations. Deterministic application code selects every tested word and owns vocabulary records, review schedules, practice counts, and streaks. Users configure session size, translation direction (forward, reverse, or mixed), and transliteration acceptance.
+## Run locally
 
-## Project status
+Requires Node 22.18+ and PostgreSQL 17. Run `npm ci`, copy `.env.example` to the ignored `.env`, and configure a dedicated database, random admin token, OpenAI API key and model. For personal use select `TRANSPORT=web` and `AI_MODE=openai`. Set `WEB_PASSWORD_HASH` to the SHA-256 hash of a randomly generated high-entropy password. The website username is `jingu`.
 
-**[Local Twilio activation](docs/daily-use.md)** — selected path after Apple Account setup failed. Polling mode runs on the Mac without public hosting. Paid account, owned/registered number, credentials, and real SMS verification are required before calling it live.
+Run `npm run dev`. The app migrates its dedicated database automatically. Open `http://localhost:3000` for the garden or `/practice` for conversation. Choose Enable practice, then Practice. No messaging app or external tunnel is used. The server binds only to loopback.
 
-**[Set up BlueBubbles on this Mac](docs/bluebubbles.md)** — alternative transport. Invite-only friends have independent practice state and share the owner’s server-side AI key, with per-person and global call limits. The adapter is tested; macOS permissions, credentials, approved chat identities, and live verification are pending.
+On an already configured Mac, `./scripts/start-mac.sh` starts the repository-local PostgreSQL cluster and prevents idle sleep while the app runs. Otherwise provide your own PostgreSQL `DATABASE_URL`.
 
-Personal-alpha text application implemented: deterministic SRS, persistent sessions/settings/progress, OpenAI question generation and semantic grading, signed Twilio webhooks, outbound delivery, opt-out, daily reminders, streaks, and garden progression. Startup imports the 50-sense Korean draft pack into PostgreSQL. Offline flows are tested; live credentials, an SMS number, and hosting are not configured yet. No real AI call or carrier SMS has been verified. The visual dashboard remains unbuilt.
+## Learning behavior
 
-**[Activate daily texting](docs/daily-use.md)** covers deployment, required credentials, phone setup, commands, and the live smoke test. `npm run dev` starts the actual API/worker using a local `.env`; `npm start` uses host environment variables. No fake grading is allowed in live SMS mode.
+- Korean starter vocabulary: 50 original draft senses, awaiting educator review.
+- Five words/session by default; forward, reverse, or mixed direction; optional transliteration.
+- Deterministic interval ladder with durable, transactional review state.
+- Complete your daily word goal to advance your streak and garden. One-word partial practice can hold an existing streak for one day without adding growth.
+- One initial garden box; additional boxes unlock with longer streaks. Naming and personal progress are available on the dashboard.
 
-- [System design](docs/system-design.md): user flow, architecture, data model, scheduling, and reliability.
-- [Development plan](docs/development-plan.md): ordered milestones and acceptance criteria.
-- [Decisions](docs/decisions.md): confirmed requirements, proposed defaults, and open questions.
-- [Garden concept](docs/garden-concept.md): view the illustrated dashboard direction.
+## Development
 
-## Run the foundation
+`npm run check` runs typechecking and tests. Database integration tests require `TEST_DATABASE_URL` pointing at a disposable test database; each suite uses an isolated schema. `npm run demo` runs offline learning fixtures.
 
-Requires Node 22.18 or newer (the target CI version is pinned in `.nvmrc`).
+See [design](docs/system-design.md), [development plan](docs/development-plan.md), and [daily use](docs/daily-use.md).
 
-```sh
-npm ci
-npm run check
-npm run demo
-```
+## Private data
 
-The demo uses fixed inputs and a clearly labeled model-output fixture; it sends no messages and does not grade live answers. `npm run check` type-checks the TypeScript sources and runs the tests. PostgreSQL tests explicitly skip unless `TEST_DATABASE_URL` is set. To run all tests, use a dedicated local test database:
-
-```sh
-TEST_DATABASE_URL=postgres://localhost/jingu_test npm run check
-```
-
-The database test user needs permission to create schemas; tests isolate their data in a temporary schema and remove that schema afterward. The [CI template](docs/ci/check.yml) provisions PostgreSQL 17 and includes these tests. GitHub CI is not active: the current GitHub credential lacks workflow scope, so move the template to `.github/workflows/check.yml` using a workflow-authorized credential to activate it. See [database setup](packages/db/README.md) for migration and persistence contracts.
-
-The initial daily new-word allowance is five, matching the default daily goal. Vocabulary entries are original draft learning material and still need pedagogical review before alpha. AI grading quality is not tested by fixed-output fixtures; that evaluation belongs to the live-AI milestone.
-
-## Product loop
-
-1. Text Jingu to begin a short conversation, or respond to an opted-in daily reminder.
-2. Practice words selected from your due vocabulary in a natural scenario.
-3. Receive short, useful corrections and occasional explicit recall checks.
-4. Finish with a recap of words practiced, reviews completed, and daily progress.
-5. Open the dashboard to see practice history, upcoming reviews, and streaks.
-
-The dashboard centers on an illustrated game-style garden that grows with each completed practice day. Held days preserve it without adding growth, and missed days never erase earned plants.
-
-Implemented garden progression (`garden-v2`) starts with one empty four-slot box. Every seven days of longest streak unlocks another box; five completed practice days mature a plant. Varieties cycle through basil, lavender, strawberry, and echinacea. When all boxes are full, the oldest mature plant moves into a permanent collection to make room. The engine reconstructs rewards from saved practice history, preserving earned boxes after a streak break. Run `npm run demo` for milestone examples. Garden artwork and dashboard rendering are still pending.
-
-Completing the daily goal increases your streak. On a busy day, practicing one word can hold an existing streak for a day without adding to its count; complete the full goal the next day to keep it going.
-
-## Proposed implementation
-
-TypeScript monorepo: web dashboard, API, background worker, shared learning engine, language packs, and messaging adapters. PostgreSQL stores durable state and jobs. SMS is the first adapter; a browser simulator supports development without sending texts.
-
-Development starts with the deterministic learning engine and its tests, then builds one complete practice loop before adding live SMS and scheduled reminders. See the development plan for release gates.
+Keep `.env`, credentials, database files, dumps, personal transcripts, and login notes out of Git and container build contexts. Only `.env.example` contains placeholder settings. AI keys stay server-side. The website password protects both garden and practice history; the separate admin token is not sent to the browser. Live AI requires available API credits.

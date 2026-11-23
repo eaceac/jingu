@@ -5,3 +5,7 @@ node_modules
 docs/assets
 coverage
 *.log
+
+.local
+.openai
+.DS_Store

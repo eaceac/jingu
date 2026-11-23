@@ -1,4 +1,4 @@
-ALTER TABLE users ADD COLUMN sms_opted_in boolean NOT NULL DEFAULT false;
+ALTER TABLE users ADD COLUMN practice_enabled boolean NOT NULL DEFAULT false;
 ALTER TABLE sessions ADD COLUMN current_index integer NOT NULL DEFAULT 0;
 ALTER TABLE review_opportunities ADD COLUMN prompt_text text;
 ALTER TABLE review_opportunities ADD COLUMN created_at timestamptz NOT NULL DEFAULT now();

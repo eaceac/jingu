@@ -1,4 +1,3 @@
-import twilio from 'twilio';
 import type { Pool } from 'pg';
 import type { Config } from './config.ts';
 import { PracticeService, readProgress } from './service.ts';
@@ -12,11 +11,9 @@ export function reminderWindow(now: string, timezone: string, time: string): boo
   return delta >= 0 && delta < 10;
 }
 export class Runtime {
-  private sending: ReturnType<typeof twilio> | undefined;
   constructor(private pool: Pool, private service: PracticeService, private cfg: Config,
-    private deliver?: (text: string) => Promise<{ sid: string }>) {
-    if (cfg.transport === 'twilio') this.sending = twilio(cfg.accountSid, cfg.authToken, { timeout: 15_000, autoRetry: false });
-  }
+    private deliver?: (text: string) => Promise<{ sid: string }>) {}
+
   async tick(now = new Date().toISOString()) {
     const lock = await this.pool.connect();
     try {
@@ -26,7 +23,7 @@ export class Runtime {
       await this.service.processNext(now);
       const user = (await lock.query('SELECT * FROM users WHERE id=$1', [this.service.userId])).rows[0];
       const today = localDate(now, user.timezone);
-      if (user.sms_opted_in && user.reminders_enabled && reminderWindow(now, user.timezone, user.reminder_local_time)) {
+      if (user.practice_enabled && user.reminders_enabled && reminderWindow(now, user.timezone, user.reminder_local_time)) {
         const p = await readProgress(lock, now, this.service.userId);
         if (p.today?.status !== 'complete') {
           await lock.query(`INSERT INTO outbox(id,user_id,operation_key,payload) VALUES($1,$2,$1,$3) ON CONFLICT(operation_key) DO NOTHING`,
@@ -37,7 +34,7 @@ export class Runtime {
       if (!item) return;
       const current = (await lock.query('SELECT * FROM users WHERE id=$1', [this.service.userId])).rows[0];
       const isReminder = item.payload.kind === 'reminder';
-      if (!current.sms_opted_in || (isReminder && (!current.reminders_enabled || item.payload.date !== today ||
+      if (!current.practice_enabled || (isReminder && (!current.reminders_enabled || item.payload.date !== today ||
         !reminderWindow(now, current.timezone, current.reminder_local_time) || (await readProgress(lock, now, this.service.userId)).today?.status === 'complete'))) {
         await lock.query("UPDATE outbox SET status='cancelled' WHERE id=$1", [item.id]); return;
       }
@@ -47,13 +44,12 @@ export class Runtime {
       }
       const sent = (await lock.query(`SELECT count(*)::int AS count FROM outbox WHERE user_id=$1 AND status IN ('sent','ambiguous','sending')
         AND to_char(created_at AT TIME ZONE $2,'YYYY-MM-DD')=$3`, [this.service.userId, user.timezone, today])).rows[0].count;
-      if (sent >= this.cfg.maxSMS) {
+      if (sent >= this.cfg.maxReplies) {
         await lock.query("UPDATE outbox SET status='cancelled',last_error='Daily message cap reached' WHERE id=$1", [item.id]); return;
       }
       await lock.query("UPDATE outbox SET status='sending',attempts=attempts+1 WHERE id=$1", [item.id]);
       try {
-        const result = this.deliver ? await this.deliver(item.payload.text) : this.sending ? await this.sending.messages.create({ to: this.cfg.phone, from: this.cfg.from, body: item.payload.text,
-          ...(this.cfg.smsReceiveMode === 'poll' ? {} : { statusCallback: `${this.cfg.publicUrl}/webhooks/sms/status` }) }) : { sid: `console:${item.id}` };
+        const result = this.deliver ? await this.deliver(item.payload.text) : { sid: `local:${item.id}` };
         await lock.query("UPDATE outbox SET status='sent',provider_message_id=$2 WHERE id=$1", [item.id, result.sid]);
         if (this.cfg.transport === 'console') console.log(`[simulator] ${item.payload.text}`);
       } catch (error) {
@@ -61,7 +57,6 @@ export class Runtime {
         const knownRejected = e.status !== undefined && e.status >= 400 && e.status < 500;
         await lock.query('UPDATE outbox SET status=$2,last_error=$3 WHERE id=$1',
           [item.id, knownRejected ? 'failed' : 'ambiguous', knownRejected ? `Provider rejected: ${e.code ?? e.status}` : 'Provider outcome unknown; inspect before retry']);
-        if (e.code === 21610) await lock.query('UPDATE users SET sms_opted_in=false,reminders_enabled=false WHERE id=$1', [this.service.userId]);
       }
     } finally {
       await lock.query('SELECT pg_advisory_unlock(191887,3)'); lock.release();

@@ -8,4 +8,10 @@ coverage/
 .DS_Store
 
 .local/
-!.env.bluebubbles.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.dump
+*.backup
+*Login.txt

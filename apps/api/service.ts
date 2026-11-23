@@ -1,3 +1,4 @@
+import { validNickname, validPatchName } from './nickname.ts';
 import { randomUUID } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
 import { koreanStarterPack } from '../../packages/languages/index.ts';
@@ -9,7 +10,7 @@ import type { Config } from './config.ts';
 
 export const USER = 'personal-learner';
 const profileFor = (userId: string) => userId === USER ? 'personal-ko-en' : `${userId}:ko-en`;
-const HELP = 'Jingu: PRACTICE, DONE, HINT, PROGRESS, SETTINGS. WORDS 5, DIRECTION forward|reverse|mixed, TRANSLITERATION on|off, REMINDER 09:00, PAUSE. STOP unsubscribes; START opts in. Practice text is sent to our AI provider for grading.';
+const HELP = 'Jingu: PRACTICE, DONE, HINT, PROGRESS, SETTINGS. WORDS 5, DIRECTION forward|reverse|mixed, TRANSLITERATION on|off, REMINDER 09:00, PAUSE, NICKNAME your-name, PATCH patch-name. STOP pause practices; START opts in. Practice text is sent to our AI provider for grading.';
 const pack = koreanStarterPack;
 const iso = (value: Date) => value.toISOString();
 function card(row: any): Card {
@@ -18,12 +19,13 @@ function card(row: any): Card {
     successfulReviews: row.successful_reviews, lapses: row.lapses, version: row.version, policyVersion: row.policy_version,
     packRank: pack.senses.find(s => s.id === row.sense_id)!.rank };
 }
-export async function seed(pool: Pool, timezone: string, userId = USER) {
+export async function seed(pool: Pool, timezone: string, userId = USER, nickname = 'Gardener') {
   const profileId = profileFor(userId);
   const c = await pool.connect();
   try {
     await c.query('BEGIN');
     await c.query('INSERT INTO users(id,timezone) VALUES($1,$2) ON CONFLICT DO NOTHING', [userId, timezone]);
+    await c.query('UPDATE users SET garden_name=COALESCE(garden_name,$2) WHERE id=$1', [userId, validNickname(nickname) ? nickname : 'Gardener']);
     await c.query('INSERT INTO learning_profiles(id,user_id,source_language,target_language) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING', [profileId, userId, 'en', 'ko']);
     for (const sense of pack.senses) {
       await c.query('INSERT INTO vocab_senses(id,language,canonical_form,gloss,metadata) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING', [sense.id, sense.language, sense.lemma, sense.gloss, sense]);
@@ -66,17 +68,17 @@ export class PracticeService {
       if (!inserted.rowCount) { await c.query('COMMIT'); return false; }
       const id = inserted.rows[0].id;
       if (stop) {
-        await c.query('UPDATE users SET sms_opted_in=false,reminders_enabled=false WHERE id=$1', [this.userId]);
+        await c.query('UPDATE users SET practice_enabled=false,reminders_enabled=false WHERE id=$1', [this.userId]);
         await c.query("UPDATE outbox SET status='cancelled' WHERE user_id=$1 AND status='pending'", [this.userId]);
         await c.query("UPDATE messages SET processing_status='cancelled' WHERE user_id=$1 AND processing_status='pending'", [this.userId]);
         await c.query("UPDATE sessions SET status='ended',ended_at=$2 WHERE user_id=$1 AND status='active'", [this.userId, now]);
         await c.query("UPDATE review_opportunities SET status='cancelled' WHERE user_id=$1 AND status='open'", [this.userId]);
         await c.query("UPDATE messages SET processing_status='complete' WHERE id=$1", [id]);
       } else if (['START', 'UNSTOP'].includes(command)) {
-        await c.query('UPDATE users SET sms_opted_in=true WHERE id=$1', [this.userId]);
-        await this.reply(c, id, 'Welcome to Jingu! Text PRACTICE to begin Korean. Your practice text goes to our AI provider for grading. Text HELP for settings, STOP to unsubscribe.');
+        await c.query('UPDATE users SET practice_enabled=true WHERE id=$1', [this.userId]);
+        await this.reply(c, id, 'Welcome to Jingu! Enter PRACTICE to begin Korean. Your practice answer goes to our AI provider for grading. Enter HELP for settings, STOP to pause practice.');
         await c.query("UPDATE messages SET processing_status='complete' WHERE id=$1", [id]);
-      } else if (optOutType === 'HELP' || !user.sms_opted_in) {
+      } else if (optOutType === 'HELP' || !user.practice_enabled) {
         await c.query("UPDATE messages SET processing_status='complete' WHERE id=$1", [id]);
       }
       await c.query('COMMIT'); return true;
@@ -111,7 +113,7 @@ export class PracticeService {
       failedMessage = message.id;
       const user = (await c.query('SELECT * FROM users WHERE id=$1', [this.userId])).rows[0];
       let response = '';
-      if (user.sms_opted_in) response = await this.turn(c, message, user, now);
+      if (user.practice_enabled) response = await this.turn(c, message, user, now);
       if (response) await this.reply(c, message.id, response);
       await c.query("UPDATE messages SET processing_status='complete' WHERE id=$1", [message.id]);
       await c.query('COMMIT'); return true;
@@ -125,7 +127,7 @@ export class PracticeService {
   private async prompt(c: PoolClient, session: any, timezone: string, now: string): Promise<string> {
     if (session.current_index >= session.ordered_card_ids.length) {
       await c.query("UPDATE sessions SET status='complete',ended_at=$2 WHERE id=$1", [session.id, now]);
-      return `Session complete. ${await this.summary(c, now)} Text PRACTICE any time.`;
+      return `Session complete. ${await this.summary(c, now)} Enter PRACTICE any time.`;
     }
     const row = (await c.query('SELECT * FROM review_cards WHERE id=$1', [session.ordered_card_ids[session.current_index]])).rows[0];
     const existing = (await c.query('SELECT * FROM review_opportunities WHERE session_id=$1 AND card_id=$2', [session.id, row.id])).rows[0];
@@ -148,6 +150,18 @@ export class PracticeService {
   }
   private async turn(c: PoolClient, message: any, user: any, now: string): Promise<string> {
     const text = message.body.trim();
+    if (/^PATCH(?:\s|$)/i.test(text)) {
+      const name = text.replace(/^PATCH\s*/i, '').trim();
+      if (!validPatchName(name)) return 'Name your patch with PATCH Moon Garden. Use 1–40 letters, spaces, apostrophes, hyphens, & or !. The name appears in the shared garden.';
+      await c.query('UPDATE users SET garden_patch_name=$2 WHERE id=$1', [this.userId, name]);
+      return `Your patch is now called ${name}.`;
+    }
+    if (/^NICKNAME(?:\s|$)/i.test(text)) {
+      const nickname = text.replace(/^NICKNAME\s*/i, '').trim();
+      if (!validNickname(nickname)) return 'Choose a nickname of 1–24 letters, spaces, apostrophes or hyphens. It appears in the shared garden; don’t use private contact information.';
+      await c.query('UPDATE users SET garden_name=$2 WHERE id=$1', [this.userId, nickname]);
+      return `Your shared garden name is now ${nickname}.`;
+    }
     const command = text.toLowerCase();
     const profile = (await c.query('SELECT * FROM learning_profiles WHERE id=$1', [this.profileId])).rows[0];
     const settings: Settings = { ...defaultSettings, wordsPerSession: profile.words_per_session, directionMode: profile.direction_mode,
@@ -155,11 +169,11 @@ export class PracticeService {
     if (command === 'help') return HELP;
     if (command === 'progress') return this.summary(c, now);
     if (command === 'settings') return `Words/session: ${settings.wordsPerSession}. Direction: ${settings.directionMode}. Transliteration: ${settings.allowTransliteration ? 'on' : 'off'}. Daily goal: ${settings.dailyGoal}. Reminders: ${user.reminders_enabled ? user.reminder_local_time : 'off'} (${user.timezone}). Changes apply to new sessions. ${HELP}`;
-    if (command === 'pause') { await c.query('UPDATE users SET reminders_enabled=false WHERE id=$1', [this.userId]); return 'Reminders paused. Text REMINDER 09:00 to enable them again.'; }
+    if (command === 'pause') { await c.query('UPDATE users SET reminders_enabled=false WHERE id=$1', [this.userId]); return 'Reminders paused. Enter REMINDER 09:00 to enable them again.'; }
     const reminder = /^reminder (\d{2}):(\d{2})$/.exec(command);
     if (reminder && +reminder[1] < 24 && +reminder[2] < 60) {
       await c.query('UPDATE users SET reminders_enabled=true,reminder_local_time=$2 WHERE id=$1', [this.userId, `${reminder[1]}:${reminder[2]}`]);
-      return `Daily reminder set for ${reminder[1]}:${reminder[2]} ${user.timezone}. Text PAUSE to disable.`;
+      return `Daily reminder set for ${reminder[1]}:${reminder[2]} ${user.timezone}. Enter PAUSE to disable.`;
     }
     const words = /^words (\d+)$/.exec(command);
     if (words && +words[1] >= 1 && +words[1] <= 50) {
@@ -191,7 +205,7 @@ export class PracticeService {
       await c.query("UPDATE sessions SET status='ended',ended_at=$2 WHERE id=$1", [session.id, now]); session = undefined;
     }
     if (!session) {
-      if (command !== 'practice') return 'Text PRACTICE to begin a session, or HELP for commands.';
+      if (command !== 'practice') return 'Enter PRACTICE to begin a session, or HELP for commands.';
       const cards = (await c.query('SELECT * FROM review_cards WHERE profile_id=$1', [this.profileId])).rows.map(card);
       const introduced = await c.query(`SELECT DISTINCT rc.sense_id FROM review_opportunities o JOIN review_cards rc ON rc.id=o.card_id WHERE o.user_id=$1`, [this.userId]);
       const today = await c.query(`SELECT DISTINCT rc.sense_id FROM review_opportunities o JOIN review_cards rc ON rc.id=o.card_id

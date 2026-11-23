@@ -1,15 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-# Validate all credentials/allowlist before starting a persistent service.
-node --env-file=.env --import tsx -e "import('./apps/api/config.ts').then(({config}) => { const c=config(); if(c.transport === 'twilio' && c.smsReceiveMode !== 'poll') throw new Error('Local SMS launcher requires SMS_RECEIVE_MODE=poll'); })"
-if node --env-file=.env -e "process.exit(process.env.TRANSPORT === 'twilio' ? 0 : 1)"; then
-  node --env-file=.env --import tsx scripts/check-providers.ts
-fi
+node --env-file=.env --import tsx -e "import('./apps/api/config.ts').then(({config}) => config())"
 pg_bin="/opt/homebrew/opt/postgresql@17/bin"
 pg_data="$PWD/.local/postgres"
 if [[ ! -f "$pg_data/PG_VERSION" ]]; then
-  echo 'Local PostgreSQL has not been initialized; see docs/bluebubbles.md.'
+  echo 'Local PostgreSQL has not been initialized; see README.md.'
   exit 1
 fi
 if ! "$pg_bin/pg_ctl" -D "$pg_data" status >/dev/null 2>&1; then

@@ -6,14 +6,13 @@ import { FakeTutor } from '../../packages/ai/index.ts';
 import { koreanStarterPack } from '../../packages/languages/index.ts';
 import { config } from './config.ts';
 import { PracticeService, seed, readProgress, USER } from './service.ts';
-import { BlueBubbles, pollBlueBubbles } from './bluebubbles.ts';
-import { SMSPoller, type PollMessage } from './sms-polling.ts';
+import { communityGarden } from './community.ts';
 import { Runtime } from './runtime.ts';
 const url = process.env.TEST_DATABASE_URL;
 const schema = `jingu_flow_${process.pid}_${Date.now()}`;
 const admin = url ? new Pool({ connectionString: url }) : undefined;
 const pool = url ? new Pool({ connectionString: url, options: `-c search_path=${schema}` }) : undefined;
-const cfg = config({ DATABASE_URL: url ?? 'postgres://unused', ADMIN_TOKEN: 'x'.repeat(32) });
+const cfg = config({ DATABASE_URL: url ?? 'postgres://unused', ADMIN_TOKEN: 'x'.repeat(32), JINGU_TIMEZONE: 'America/Los_Angeles' });
 const skip = { skip: !url && 'Set TEST_DATABASE_URL for flow integration tests' };
 let svc: PracticeService;
 let clock: number;
@@ -60,8 +59,8 @@ test('duplicate message cannot count twice; settings snapshot survives mid-sessi
 test('STOP cancels pending delivery and reminders; opted-out answers never call tutor', skip, async () => {
   await text('START'); await text('REMINDER 09:00'); await text('PRACTICE'); await text('STOP');
   await text('물');
-  const u = (await pool!.query('SELECT sms_opted_in,reminders_enabled FROM users WHERE id=$1', [USER])).rows[0];
-  assert.deepEqual(u, { sms_opted_in: false, reminders_enabled: false });
+  const u = (await pool!.query('SELECT practice_enabled,reminders_enabled FROM users WHERE id=$1', [USER])).rows[0];
+  assert.deepEqual(u, { practice_enabled: false, reminders_enabled: false });
   assert.equal((await pool!.query("SELECT count(*)::int AS n FROM outbox WHERE status='pending'")).rows[0].n, 0);
   assert.equal((await pool!.query('SELECT count(*)::int AS n FROM assessments')).rows[0].n, 0);
 });
@@ -127,7 +126,7 @@ test('invited learners have independent queues, cards, settings, progress and de
   assert.equal(sent.length, 1);
   assert.equal((await pool!.query("SELECT user_id FROM outbox WHERE provider_message_id='friend-delivery'")).rows[0].user_id, 'friend');
   await friend.enqueue('test', 'friend-stop', 'STOP', now());
-  assert.equal((await pool!.query('SELECT sms_opted_in FROM users WHERE id=$1', [USER])).rows[0].sms_opted_in, true);
+  assert.equal((await pool!.query('SELECT practice_enabled FROM users WHERE id=$1', [USER])).rows[0].practice_enabled, true);
 });
 
 test('shared AI cap prevents friends collectively exceeding owner allowance', skip, async () => {
@@ -145,45 +144,33 @@ test('shared AI cap prevents friends collectively exceeding owner allowance', sk
 });
 
 
-test('polling starts without importing history and deduplicates overlapping fetches after restart', skip, async () => {
-  const learner = { id: USER, sender: '+15551234567', chatGuid: 'iMessage;-;+15551234567' };
-  const api = new BlueBubbles('http://127.0.0.1:1234', 'test');
-  let messages: any[] = [];
-  api.messages = async () => messages;
-  await pollBlueBubbles(pool!, api, learner, svc, clock);
-  clock += 2000;
-  messages = [
-    { guid: 'old', text: 'jingu start', dateCreated: clock - 60_000, isFromMe: false, handle: { address: learner.sender } },
-    { guid: 'private', text: 'private conversation', dateCreated: clock, isFromMe: false, handle: { address: learner.sender } },
-    { guid: 'start', text: 'jingu start', dateCreated: clock, isFromMe: false, handle: { address: learner.sender } },
-  ];
-  await pollBlueBubbles(pool!, api, learner, svc, clock);
-  await pollBlueBubbles(pool!, api, learner, new PracticeService(pool!, new FakeTutor(), cfg), clock + 500);
-  assert.equal((await pool!.query('SELECT count(*)::int AS n FROM messages')).rows[0].n, 1);
-  assert.equal((await pool!.query('SELECT count(*)::int AS n FROM outbox')).rows[0].n, 1);
+test('shared garden exposes nicknames and separate progress, never private learner data', skip, async () => {
+  await seed(pool!, 'America/Los_Angeles', 'friend-private-id', 'Mina');
+  await text('START'); await text('NICKNAME Rowan'); await text('PRACTICE');
+  for (const answer of ['물', '밥', '집', '학교', '친구']) await text(answer);
+  const result = await communityGarden(pool!, [USER, 'friend-private-id'], now());
+  assert.equal(result.total, 2); assert.equal(result.tendedToday, 1);
+  assert.equal(result.members[0].nickname, 'Rowan');
+  assert.equal(result.members[0].garden.growthSteps, 1);
+  assert.equal(result.members[1].nickname, 'Mina');
+  assert.equal(result.members[1].garden.plants.length, 0);
+  const serialized = JSON.stringify(result);
+  for (const privateValue of [USER, 'friend-private-id', 'assessmentId', 'phone', 'acceptedForms', 'OPENAI_API_KEY']) assert.ok(!serialized.includes(privateValue));
+  await text('NICKNAME +15551234567');
+  assert.equal((await communityGarden(pool!, [USER], now())).members[0].nickname, 'Rowan');
+  assert.equal((await communityGarden(pool!, ['friend-private-id'], now())).total, 1);
 });
 
 
-test('SMS polling ignores old/private messages, deduplicates restart, honors STOP, and records delivery failures', skip, async () => {
-  const smsCfg = { ...cfg, smsReceiveMode: 'poll', accountSid: 'ACtest', phone: '+15551234567', from: '+15557654321' };
-  let inbox: PollMessage[] = [];
-  const sample = (sid: string, body: string, extra: Partial<PollMessage> = {}): PollMessage => ({ sid, body, accountSid: smsCfg.accountSid,
-    from: smsCfg.phone, to: smsCfg.from, dateCreated: new Date(clock), direction: 'inbound', status: 'received', errorCode: null, ...extra });
-  const reader = { list: async () => inbox, fetch: async (sid: string) => sample(sid, '', { from: smsCfg.from, to: smsCfg.phone, status: 'undelivered', errorCode: 30034 }) };
-  let poller = new SMSPoller(pool!, smsCfg, svc, reader);
-  await poller.poll(new Date(clock));
-  clock += 2000;
-  inbox = [sample('old', 'start', { dateCreated: new Date(clock - 60_000) }), sample('other', 'start', { from: '+15550000000' }),
-    sample('account', 'start', { accountSid: 'ACother' }), sample('outbound', 'start', { direction: 'outbound-api' }), sample('start', 'START')];
-  await poller.poll(new Date(clock));
-  poller = new SMSPoller(pool!, smsCfg, svc, reader);
-  await poller.poll(new Date(clock));
-  assert.equal((await pool!.query('SELECT count(*)::int AS n FROM messages')).rows[0].n, 1);
-  await pool!.query("UPDATE outbox SET status='sent',provider_message_id='SMfake'");
-  await poller.poll(new Date(clock));
-  assert.equal((await pool!.query("SELECT status,last_error FROM outbox WHERE provider_message_id='SMfake'")).rows[0].last_error, 'Delivery failed: 30034');
-  inbox = [sample('stop', 'STOP')];
-  await poller.poll(new Date(clock));
-  assert.equal((await pool!.query('SELECT sms_opted_in FROM users WHERE id=$1', [USER])).rows[0].sms_opted_in, false);
-  await assert.rejects(() => new SMSPoller(pool!, { ...smsCfg, phone: '+15558888888' }, svc, reader).poll(new Date(clock)), /identity changed/);
+test('PATCH names persist for the sending learner without changing another garden', skip, async () => {
+  await seed(pool!, cfg.timezone, 'friend', 'Mina');
+  await text('START'); await text('PATCH Moon Garden');
+  const result = await communityGarden(pool!, [USER, 'friend'], now());
+  assert.equal(result.members[0].patchName, 'Moon Garden');
+  assert.equal(result.members[1].patchName, null);
+  await text('PATCH <script>alert(1)</script>');
+  await text('PATCH private@example.com');
+  assert.equal((await communityGarden(pool!, [USER], now())).members[0].patchName, 'Moon Garden');
+  svc = new PracticeService(pool!, new FakeTutor(), cfg);
+  assert.equal((await communityGarden(pool!, [USER], now())).members[0].patchName, 'Moon Garden');
 });

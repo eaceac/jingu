@@ -1,0 +1,12 @@
+[extend]
+useDefault = true
+
+[[rules]]
+id = "personal-home-path"
+description = "Personal home-directory path in source"
+regex = '''/Users/[A-Za-z0-9._-]+/'''
+
+[[rules]]
+id = "personal-mail-address"
+description = "Personal email address in source"
+regex = '''(?i)[A-Z0-9._%+-]+@(?:gmail|icloud|hotmail|outlook|yahoo)\.com'''

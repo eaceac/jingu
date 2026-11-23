@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import { Pool } from 'pg';
 import { createServer } from 'node:net';
 
-test('HTTP service starts, protects progress, persists a queued practice turn and rejects fake webhook access',
+test('HTTP service starts, protects progress, persists a queued practice turn and rejects unknown endpoints',
   { skip: !process.env.TEST_DATABASE_URL && 'Set TEST_DATABASE_URL for HTTP smoke test', timeout: 20_000 }, async () => {
     const admin = new Pool({ connectionString: process.env.TEST_DATABASE_URL });
     const schema = `jingu_http_${process.pid}_${Date.now()}`;
@@ -33,7 +33,13 @@ test('HTTP service starts, protects progress, persists a queued practice turn an
       }
       assert.ok(ready, errors);
       assert.equal((await fetch(`${base}/api/progress`)).status, 401);
-      assert.equal((await fetch(`${base}/webhooks/sms/inbound`, { method: 'POST', body: 'Body=practice' })).status, 401);
+      const page = await fetch(base); assert.equal(page.status, 200); assert.match(await page.text(), /Our garden/);
+      assert.equal((await fetch(`${base}/garden.js`)).status, 200);
+      const garden = await fetch(`${base}/api/garden`); assert.equal(garden.status, 200);
+      assert.equal((await garden.json()).total, 1);
+      assert.equal((await fetch(`${base}/api/garden`, { method: 'POST' })).status, 401);
+      assert.equal((await fetch(`${base}/.env`)).status, 401);
+      assert.equal((await fetch(`${base}/unknown-inbound`, { method: 'POST', body: 'Body=practice' })).status, 401);
       const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
       for (const text of ['START', 'PRACTICE']) {
         assert.equal((await fetch(`${base}/api/simulate`, { method: 'POST', headers, body: JSON.stringify({ text }) })).status, 202);
